@@ -1,0 +1,2429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Road &amp; Drain Survey Planner — Offline</title>
+<style>
+  :root{
+    --blue-900:#0b3d66; --blue-700:#0f5c96; --blue-600:#1476c4; --blue-500:#2b8fe0;
+    --blue-100:#eaf3fb; --blue-50:#f5f9fd;
+    --gray-900:#1b2530; --gray-700:#42505e; --gray-500:#6b7a89; --gray-300:#c4cfd9; --gray-100:#eef2f6;
+    --white:#ffffff; --green:#1e8a4c; --amber:#b9791a; --red:#c0392b;
+    --radius:8px; --shadow:0 1px 3px rgba(15,60,110,.12), 0 1px 2px rgba(15,60,110,.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--gray-900);background:var(--gray-100);}
+  #app{display:flex;flex-direction:column;height:100vh;height:100dvh;}
+  header.topbar{background:var(--blue-900);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:var(--shadow);z-index:5;}
+  header.topbar h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.2px;}
+  header.topbar .sub{font-size:11px;opacity:.8;}
+  header.topbar input#projectName{margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;padding:6px 10px;border-radius:6px;font-size:12px;min-width:160px;}
+  header.topbar input#projectName::placeholder{color:rgba(255,255,255,.65);}
+
+  .layout{flex:1;display:flex;min-height:0;}
+  aside.sidebar{width:290px;min-width:290px;background:#fff;border-right:1px solid var(--gray-300);overflow-y:auto;padding:10px;}
+  main.mapwrap{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;}
+
+  .step{border:1px solid var(--gray-300);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;background:#fff;}
+  .step > .step-head{background:var(--blue-50);padding:8px 10px;font-size:12.5px;font-weight:700;color:var(--blue-900);display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;}
+  .step > .step-head .num{background:var(--blue-700);color:#fff;width:18px;height:18px;border-radius:50%;font-size:10.5px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .step > .step-body{padding:10px;font-size:12.5px;display:flex;flex-direction:column;gap:8px;}
+  .step > .step-body.collapsed{display:none;}
+  .step small.hint{color:var(--gray-500);font-size:11px;line-height:1.4;}
+
+  label.field{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--gray-700);font-weight:600;}
+  input[type=text],input[type=number],select{padding:6px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:12.5px;font-family:inherit;color:var(--gray-900);}
+  input[type=file]{font-size:11.5px;}
+  .row{display:flex;gap:6px;align-items:center;}
+  .row > *{flex:1;}
+
+  button{border:1px solid var(--blue-600);background:var(--blue-600);color:#fff;padding:7px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+  button:hover{background:var(--blue-700);}
+  button.secondary{background:#fff;color:var(--blue-700);}
+  button.secondary:hover{background:var(--blue-100);}
+  button.ghost{background:transparent;border-color:var(--gray-300);color:var(--gray-700);}
+  button.ghost:hover{background:var(--gray-100);}
+  button.danger{background:#fff;border-color:var(--red);color:var(--red);}
+  button:disabled{opacity:.45;cursor:not-allowed;}
+  button.active{outline:2px solid var(--amber);outline-offset:1px;}
+
+  .toolbar{display:flex;gap:6px;align-items:center;background:#fff;border-bottom:1px solid var(--gray-300);padding:6px 10px;flex-wrap:wrap;}
+  .toolbar .divider{width:1px;height:22px;background:var(--gray-300);margin:0 4px;}
+  .toolbar .tool-btn{background:#fff;color:var(--gray-700);border-color:var(--gray-300);padding:6px 9px;font-size:11.5px;}
+  .toolbar .tool-btn.active{background:var(--blue-600);color:#fff;border-color:var(--blue-600);}
+  .toolbar .status{margin-left:auto;font-size:11px;color:var(--gray-500);}
+
+  #mapCanvas{flex:1;display:block;width:100%;height:100%;background:#dfe9f2;cursor:crosshair;touch-action:none;}
+  .legend{position:absolute;right:10px;bottom:10px;background:rgba(255,255,255,.94);border:1px solid var(--gray-300);border-radius:6px;padding:6px 8px;font-size:10.5px;color:var(--gray-700);box-shadow:var(--shadow);}
+  .legend .bar{height:10px;width:160px;border-radius:3px;margin:3px 0;background:linear-gradient(to right,#2f6f2f,#a8c93f,#e8d24c,#c98a3a,#8a4a2a,#ffffff);}
+  .coordbox{position:absolute;left:10px;top:10px;background:rgba(255,255,255,.94);border:1px solid var(--gray-300);border-radius:6px;padding:5px 8px;font-size:10.5px;color:var(--gray-700);box-shadow:var(--shadow);font-family:ui-monospace,monospace;}
+
+  section.panel{background:#fff;border-top:1px solid var(--gray-300);padding:10px 14px;}
+  section.panel h2{font-size:13px;margin:0 0 8px 0;color:var(--blue-900);}
+  .panel-tabs{display:flex;gap:4px;margin-bottom:8px;}
+  .panel-tabs button{padding:5px 10px;font-size:11.5px;}
+
+  table.data{border-collapse:collapse;width:100%;font-size:11.5px;}
+  table.data th, table.data td{border:1px solid var(--gray-300);padding:4px 6px;text-align:right;}
+  table.data th{background:var(--blue-50);color:var(--blue-900);position:sticky;top:0;}
+  table.data td:first-child, table.data th:first-child{text-align:left;}
+  table.data tr:nth-child(even){background:var(--gray-100);}
+  .tablewrap{max-height:220px;overflow:auto;border:1px solid var(--gray-300);border-radius:6px;}
+
+  .chartcard{border:1px solid var(--gray-300);border-radius:6px;padding:6px;background:#fff;}
+  .chartcard svg{width:100%;height:auto;display:block;}
+
+  .badge{display:inline-block;background:var(--blue-100);color:var(--blue-900);border-radius:10px;padding:2px 8px;font-size:10.5px;font-weight:700;}
+  .kvs{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:11.5px;color:var(--gray-700);}
+  .kvs b{color:var(--gray-900);}
+
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--gray-900);color:#fff;padding:9px 16px;border-radius:20px;font-size:12.5px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .2s;z-index:300;}
+  #toast.show{opacity:1;}
+
+  #reportSection{display:none;}
+  #view3DModal{display:none;position:fixed;inset:0;background:#10202f;z-index:100;flex-direction:column;}
+  #view3DModal.open{display:flex;}
+  #view3DModal .v3d-top{background:var(--blue-900);color:#fff;padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  #view3DModal .v3d-top h3{margin:0;font-size:13px;font-weight:700;}
+  #view3DModal .v3d-top .spacer{flex:1;}
+  #view3DModal .v3d-top label{font-size:11px;display:flex;align-items:center;gap:5px;}
+  #view3DModal .v3d-top input[type=range]{width:110px;}
+  #view3DModal canvas{flex:1;width:100%;display:block;touch-action:none;cursor:grab;}
+  #view3DModal .v3d-hint{position:absolute;left:12px;bottom:10px;color:rgba(255,255,255,.65);font-size:10.5px;pointer-events:none;}
+  @page{margin:12mm;}
+  @media print{
+    /* Print ONLY the report: hide the app, every overlay, the toast - anything that is not #reportSection */
+    body > *:not(#reportSection){display:none !important;}
+    #reportSection{display:block !important;}
+    body{background:#fff;height:auto;}
+    html{height:auto;}
+    #reportSection tr{page-break-inside:avoid;}
+    #reportSection thead{display:table-header-group;}
+    .chip,.stat{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  }
+  #reportSection{padding:20px;}
+  #reportSection h1{font-size:18px;color:var(--blue-900);margin-bottom:2px;}
+  #reportSection .meta{font-size:11.5px;color:var(--gray-700);margin-bottom:14px;}
+  #reportSection img.mapshot{max-width:100%;border:1px solid var(--gray-300);margin:10px 0;}
+
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:var(--gray-300);border-radius:5px;}
+
+  /* ---- Mobile / narrow screens: sidebar becomes a slide-out drawer ---- */
+  #menuToggle{display:none;}
+  #sidebarBackdrop{display:none;}
+  @media (max-width: 820px){
+    #menuToggle{display:inline-flex;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 10px;border-radius:6px;font-size:16px;align-items:center;justify-content:center;}
+    header.topbar input#projectName{margin-left:0;flex:1;min-width:0;order:3;}
+    .layout{position:relative;}
+    aside.sidebar{
+      position:fixed; top:0; left:-88vw; width:88vw; max-width:340px; height:100%;
+      z-index:20; transition:left .22s ease; box-shadow:2px 0 18px rgba(0,0,0,.25);
+      padding-top:56px;
+    }
+    aside.sidebar.open{ left:0; }
+    #sidebarBackdrop.open{ display:block; position:fixed; inset:0; background:rgba(10,20,30,.35); z-index:15; }
+    main.mapwrap{ width:100%; }
+    button, .toolbar .tool-btn{ padding:9px 12px; font-size:12.5px; }
+    table.data{ font-size:11px; }
+  }
+
+  /* ================= UI refinement: header actions, full-screen views, export sheet ================= */
+  .hdr-actions{display:flex;gap:6px;}
+  .hdr-btn{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 11px;border-radius:6px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;}
+  .hdr-btn:hover{background:rgba(255,255,255,.26);}
+
+  .overlay-view{display:none;position:fixed;inset:0;z-index:60;background:var(--gray-100);flex-direction:column;}
+  .overlay-view.open{display:flex;}
+  .ov-top{background:var(--blue-900);color:#fff;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;box-shadow:var(--shadow);}
+  .ov-top h3{margin:0;font-size:14px;font-weight:700;}
+  .ov-top .spacer{flex:1;}
+  .back-btn{background:#fff;color:var(--blue-900);border:0;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;}
+  .back-btn:hover{background:var(--blue-100);}
+  .ov-btn{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);color:#fff;padding:7px 11px;font-size:12px;}
+  .ov-btn:hover{background:rgba(255,255,255,.26);}
+  .ov-body{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin-bottom:10px;}
+  .stat{background:#fff;border:1px solid var(--gray-300);border-radius:var(--radius);padding:8px 10px;}
+  .stat .k{font-size:10.5px;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;}
+  .stat .v{font-size:17px;font-weight:700;color:var(--blue-900);margin-top:2px;}
+  .stat .s{font-size:10.5px;color:var(--gray-500);}
+  .readout{font-size:12px;color:var(--gray-700);padding:8px 6px 4px;min-height:30px;}
+  .chip{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700;}
+  .chip.g{background:#e3f4ea;color:var(--green);} .chip.a{background:#fbf0dc;color:var(--amber);} .chip.r{background:#f9e0dc;color:var(--red);} .chip.n{background:var(--gray-100);color:var(--gray-500);}
+  .ov-body .tablewrap{max-height:none;background:#fff;}
+
+  #exportSheet{background:rgba(10,20,30,.5);z-index:70;align-items:center;justify-content:center;padding:14px;}
+  .sheet-card{background:#fff;border-radius:14px;max-width:580px;width:100%;max-height:100%;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.35);}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--gray-300);}
+  .sheet-head h3{margin:0;font-size:15px;color:var(--blue-900);}
+  .export-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;}
+  .export-grid button{background:#fff;color:var(--gray-900);border:1px solid var(--gray-300);border-radius:10px;padding:10px;text-align:left;display:flex;flex-direction:column;gap:3px;font-weight:600;font-size:12.5px;}
+  .export-grid button:hover{background:var(--blue-50);border-color:var(--blue-500);}
+  .export-grid button .ic{font-size:20px;}
+  .export-grid button small{font-weight:400;color:var(--gray-500);font-size:11px;}
+  .export-grid button.primary{grid-column:1 / -1;background:var(--blue-600);color:#fff;border-color:var(--blue-600);}
+  .export-grid button.primary:hover{background:var(--blue-700);}
+  .export-grid button.primary small{color:rgba(255,255,255,.88);}
+  .sheet-note{padding:0 14px 14px;font-size:11px;color:var(--gray-500);line-height:1.5;}
+
+  #emptyState{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);background:rgba(255,255,255,.97);border:1px solid var(--gray-300);border-radius:14px;box-shadow:0 6px 24px rgba(15,60,110,.18);padding:16px 18px;max-width:350px;width:calc(100% - 28px);text-align:center;z-index:4;}
+  #emptyState h2{margin:0 0 4px;font-size:16px;color:var(--blue-900);}
+  #emptyState p{margin:0 0 10px;font-size:12px;color:var(--gray-700);line-height:1.45;}
+  #emptyState .btns{display:flex;flex-direction:column;gap:6px;}
+
+  #drawBar{display:none;position:absolute;left:50%;bottom:64px;transform:translateX(-50%);background:var(--blue-900);color:#fff;border-radius:26px;padding:6px 8px 6px 14px;gap:8px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.32);z-index:6;max-width:calc(100% - 16px);}
+  #drawBar .lbl{font-size:11.5px;line-height:1.25;}
+  #drawBar button{padding:7px 11px;border-radius:18px;font-size:12px;white-space:nowrap;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;}
+  #drawBar button.fin{background:var(--green);border-color:var(--green);}
+  .step.done > .step-head .num{background:var(--green);}
+  @media (max-width:820px){ .hdr-actions{margin-left:auto;} }
+  @media (max-width:520px){ .hdr-btn span{display:none;} header.topbar .sub{display:none;} .export-grid{grid-template-columns:1fr;} #drawBar{flex-wrap:wrap;justify-content:center;border-radius:16px;padding:8px 10px;} }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <button id="menuToggle" onclick="toggleSidebar()">☰</button>
+    <div>
+      <h1>Road &amp; Drain Survey Planner</h1>
+      <div class="sub">Offline DEM &middot; Contours &middot; Chainage &middot; Longitudinal Profile</div>
+    </div>
+    <input id="projectName" type="text" placeholder="Project / Road name">
+    <div class="hdr-actions">
+      <button class="hdr-btn" onclick="openProfileView()" title="Longitudinal profile">📈 <span>Profile</span></button>
+      <button class="hdr-btn" onclick="open3DView()" title="3D terrain view">🧊 <span>3D</span></button>
+      <button class="hdr-btn" onclick="openExportSheet()" title="Export and print">⬇ <span>Export</span></button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div id="sidebarBackdrop" onclick="toggleSidebar(false)"></div>
+    <aside class="sidebar" id="sidebar"><!-- step panels injected by JS --></aside>
+
+    <main class="mapwrap">
+      <div class="toolbar" id="toolbar"><!-- injected by JS --></div>
+      <div style="position:relative;flex:1;min-height:0;">
+        <canvas id="mapCanvas"></canvas>
+        <div class="coordbox" id="coordbox">lon —, lat —</div>
+        <div id="osmAttribution" style="display:none;position:absolute;right:10px;top:10px;background:rgba(255,255,255,.85);padding:2px 6px;border-radius:4px;font-size:9.5px;color:#42505e;">© Esri, HERE, Garmin, © OpenStreetMap contributors</div>
+        <div id="emptyState">
+          <h2>Start a survey</h2>
+          <p>Load a DEM (elevation data) for your site to see contours, draw a road / drain / path and get its longitudinal profile.</p>
+          <div class="btns">
+            <button onclick="document.getElementById('demFileTif').click()">📂 Open GeoTIFF (.tif)</button>
+            <button class="secondary" onclick="document.getElementById('demFileCsv').click()">📄 Open CSV elevation file</button>
+            <button class="secondary" onclick="fetchDemFromInternet()">🌐 Fetch elevation online for this map view</button>
+            <button class="ghost" onclick="dismissEmptyState()">Hide this card (pan / zoom the map first)</button>
+          </div>
+        </div>
+        <div id="drawBar">
+          <span class="lbl" id="drawBarLabel"></span>
+          <button class="und" onclick="drawUndo()">↶ Undo</button>
+          <button class="fin" onclick="drawFinish()">✓ Finish</button>
+          <button class="clr" onclick="drawClear()">✕ Clear</button>
+        </div>
+        <div class="legend" id="legend" style="display:none;">
+          <div id="legendLabel">Elevation (m)</div>
+          <div class="bar"></div>
+          <div class="row" style="justify-content:space-between;"><span id="legendMin">–</span><span id="legendMax">–</span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+</div>
+
+<div id="reportSection"></div>
+
+<div id="profileView" class="overlay-view">
+  <div class="ov-top">
+    <button class="back-btn" onclick="closeOverlay('profileView')">← Back to map</button>
+    <h3>📈 Longitudinal Profile</h3>
+    <div class="spacer"></div>
+    <button class="ov-btn" onclick="printProfileReport()">🖨 Print / PDF</button>
+    <button class="ov-btn" onclick="exportCSV()">⬇ CSV</button>
+    <button class="ov-btn" onclick="exportProfilePNG()">⬇ Chart PNG</button>
+  </div>
+  <div class="ov-body">
+    <div id="profileStats" class="stat-grid"></div>
+    <div class="chartcard" style="margin-bottom:10px;">
+      <div id="profileChartHolder"></div>
+      <div id="profileReadout" class="readout">Tap or slide along the chart to read the level (RL) and gradient at any chainage.</div>
+    </div>
+    <div class="tablewrap"><table class="data" id="chainageTable"></table></div>
+  </div>
+</div>
+
+<div id="exportSheet" class="overlay-view" onclick="if(event.target===this)closeOverlay('exportSheet')">
+  <div class="sheet-card">
+    <div class="sheet-head"><h3>⬇ Export &amp; Print</h3><button class="ghost" onclick="closeOverlay('exportSheet')">✕ Close</button></div>
+    <div class="export-grid">
+      <button class="primary" onclick="exportAction('printProfile')"><span class="ic">📈</span>Print Longitudinal Profile<small>Chart, key figures and chainage table — choose "Save as PDF" in the print dialog</small></button>
+      <button onclick="exportAction('printReport')"><span class="ic">🖨</span>Full report<small>Map + profile + table</small></button>
+      <button onclick="exportAction('contourMap')"><span class="ic">🗺️</span>Contour map<small>Labelled contour lines</small></button>
+      <button onclick="exportAction('mapPNG')"><span class="ic">🖼</span>Map image (PNG)<small>Current map view</small></button>
+      <button onclick="exportAction('csv')"><span class="ic">📊</span>Chainage CSV<small>Opens in Excel</small></button>
+      <button onclick="exportAction('geojson')"><span class="ic">📍</span>GeoJSON<small>QGIS / GIS software</small></button>
+      <button onclick="exportAction('kml')"><span class="ic">🌍</span>KML<small>Google Earth</small></button>
+    </div>
+    <div class="sheet-note">PDF: in the print dialog set the destination to <b>Save as PDF</b> (Chrome on Android or Windows). If no print dialog appears, open this file in Chrome rather than a file-manager preview.</div>
+  </div>
+</div>
+
+<div id="view3DModal">
+  <div class="v3d-top">
+    <button class="back-btn" onclick="close3DView()">← Back to map</button>
+    <h3>🧊 3D Terrain View</h3>
+    <label>Height ×<input type="range" id="v3dExaggeration" min="1" max="60" step="1" value="10" oninput="onV3DExaggerationChange(this.value)"><span id="v3dExagLabel">10×</span></label>
+    <label>Tilt<input type="range" id="v3dTilt" min="10" max="85" step="1" value="54" oninput="onV3DTiltChange(this.value)"><span id="v3dTiltLabel">54°</span></label>
+    <label>Contour interval (m)<input type="number" id="v3dInterval" value="1" min="0.1" step="0.1" style="width:60px;" onchange="rebuild3DTerrain()"></label>
+    <button class="secondary" onclick="setV3DPreset('top')">⬇ Top View</button>
+    <button class="secondary" onclick="setV3DPreset('perspective')">◺ Perspective</button>
+    <button class="secondary" onclick="reset3DView()">⤢ Reset View</button>
+    <button class="secondary" onclick="export3DPNG()">⬇ PNG</button>
+    <div class="spacer"></div>
+  </div>
+  <div style="position:relative;flex:1;">
+    <canvas id="v3dCanvas"></canvas>
+    <div class="v3d-hint">Drag to rotate &middot; Scroll / pinch to zoom</div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ============================= APP STATE ============================= */
+const State = {
+  dem: null,            // parsed DEM grid: {width,height,minLon,maxLat,dLon,dLat,data,nodata,source,resKm}
+  demSourceName: '',
+  demMode: null,         // 'grid' | 'idw'
+  idwPoints: null,       // for XYZ CSV mode: [{lon,lat,z}]
+  view: { scale: 1, offX: 0, offY: 0 }, // pan/zoom over the DEM bounding box
+  bounds: null,          // {minLon,maxLon,minLat,maxLat} currently displayed (from DEM, or default Puducherry view)
+  tool: 'pan',           // 'pan' | 'rect' | 'polygon' | 'road'
+  areaPoints: [],        // geo points for area selection (polygon or 2-corner rect)
+  areaType: null,        // 'rect' | 'polygon'
+  areaClosed: false,
+  roadPoints: [],        // geo points for road/drain/path
+  roadClosed: false,
+  contourInterval: 1,
+  contourSegments: [],   // [{level, x1,y1,x2,y2}] in grid pixel coords
+  chainageSpacing: 20,
+  chainages: [],         // [{chainage,lon,lat,rl,gradient}]
+  rasterCanvas: null,    // offscreen colorized DEM raster
+  demMinV: 0, demMaxV: 0,
+  basemapMode: 'off',    // 'off' | 'street' | 'satellite'
+  tileCache: new Map(),  // "z_x_y" -> {img, loaded}
+  v3d: null,             // active 3D view state, built lazily when the 3D modal opens
+};
+
+const DEFAULT_CENTER = { lon: 79.808, lat: 11.902 }; // Ariankuppam, Puducherry
+
+/* ============================= TOAST ============================= */
+let toastTimer=null;
+function toast(msg, isError){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? 'var(--red)' : 'var(--gray-900)';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 3200);
+}
+
+/* ============================= OVERLAYS + BACK-BUTTON HANDLING ============================= */
+// Full-screen views (Profile, 3D, Export sheet) each push ONE history entry, so the phone's Back button
+// closes the view instead of leaving the app. A "press Back again to exit" guard protects the main map.
+const Views = { stack: [], pendingBack: 0, deferred: [], exitArmed: false };
+
+function openOverlay(id) {
+  const el = document.getElementById(id);
+  if (!el || el.classList.contains('open')) return;
+  el.classList.add('open');
+  Views.stack.push(id);
+  const push = () => { try { history.pushState({ overlay: id }, ''); } catch(e) {} };
+  if (Views.pendingBack > 0) Views.deferred.push(push); else push();
+}
+function closeOverlay(id, fromPopState) {
+  const el = document.getElementById(id);
+  if (!el || !el.classList.contains('open')) return;
+  el.classList.remove('open');
+  const i = Views.stack.lastIndexOf(id);
+  if (i >= 0) Views.stack.splice(i, 1);
+  if (!fromPopState) {              // closed with a button: also remove the history entry we pushed
+    Views.pendingBack++;
+    try { history.back(); } catch(e) { Views.pendingBack--; }
+  }
+}
+function initHistory() {
+  try { history.replaceState({ base: true }, ''); history.pushState({ app: true }, ''); } catch(e) {}
+  window.addEventListener('popstate', () => {
+    if (Views.pendingBack > 0) {    // this popstate was caused by our own closeOverlay()
+      Views.pendingBack--;
+      if (Views.pendingBack === 0) Views.deferred.splice(0).forEach(f => f());
+      return;
+    }
+    const top = Views.stack[Views.stack.length - 1];
+    if (top) { closeOverlay(top, true); return; }          // Back button closes the open screen
+    const sb = document.getElementById('sidebar');
+    if (sb && sb.classList.contains('open')) {             // ...or the menu drawer
+      toggleSidebar(false);
+      try { history.pushState({ app: true }, ''); } catch(e) {}
+      return;
+    }
+    if (Views.exitArmed) { try { history.back(); } catch(e) {} return; }   // second Back within 2 s: really leave
+    Views.exitArmed = true;
+    toast('Press Back again to exit');
+    try { history.pushState({ app: true }, ''); } catch(e) {}
+    setTimeout(() => { Views.exitArmed = false; }, 2000);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && Views.stack.length) closeOverlay(Views.stack[Views.stack.length - 1]);
+  });
+}
+
+/* ============================= GEO UTILS ============================= */
+function haversine(lon1, lat1, lon2, lat2) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/* ============================= GEOTIFF PARSER ============================= */
+// Supports uncompressed, single-band, north-up GeoTIFFs (ModelPixelScale + ModelTiepoint).
+function parseGeoTIFF(arrayBuffer) {
+  const dv = new DataView(arrayBuffer);
+  const byteOrder = dv.getUint16(0, true);
+  let little;
+  if (byteOrder === 0x4949) little = true;
+  else if (byteOrder === 0x4D4D) little = false;
+  else throw new Error('Not a valid TIFF file (bad byte-order marker).');
+  const magic = dv.getUint16(2, little);
+  if (magic !== 42) throw new Error('Not a valid TIFF file (bad magic number).');
+  let ifdOffset = dv.getUint32(4, little);
+
+  const TYPE_SIZES = {1:1,2:1,3:2,4:4,5:8,6:1,7:1,8:2,9:4,10:8,11:4,12:8};
+
+  function readValues(type, count, offset) {
+    const size = TYPE_SIZES[type];
+    if (size === undefined) throw new Error('Unsupported TIFF field type ' + type);
+    const out = [];
+    for (let i=0;i<count;i++){
+      const pos = offset + i*size;
+      switch(type){
+        case 1: out.push(dv.getUint8(pos)); break;
+        case 2: out.push(dv.getUint8(pos)); break;
+        case 3: out.push(dv.getUint16(pos, little)); break;
+        case 4: out.push(dv.getUint32(pos, little)); break;
+        case 5: out.push(dv.getUint32(pos, little) / dv.getUint32(pos+4, little)); break;
+        case 11: out.push(dv.getFloat32(pos, little)); break;
+        case 12: out.push(dv.getFloat64(pos, little)); break;
+        default: throw new Error('Unsupported TIFF field type ' + type);
+      }
+    }
+    return out;
+  }
+
+  const tags = {};
+  const numEntries = dv.getUint16(ifdOffset, little);
+  for (let e=0; e<numEntries; e++) {
+    const entryOffset = ifdOffset + 2 + e*12;
+    const tag = dv.getUint16(entryOffset, little);
+    const type = dv.getUint16(entryOffset+2, little);
+    const count = dv.getUint32(entryOffset+4, little);
+    const size = TYPE_SIZES[type] || 1;
+    const totalBytes = size*count;
+    const valueFieldOffset = entryOffset+8;
+    const dataOffset = totalBytes <= 4 ? valueFieldOffset : dv.getUint32(valueFieldOffset, little);
+    tags[tag] = readValues(type, count, dataOffset);
+  }
+  function tagVal(t, def) { return tags[t] || def; }
+
+  const width = tagVal(256)[0];
+  const height = tagVal(257)[0];
+  const bitsPerSample = tagVal(258, [32])[0];
+  const compression = tagVal(259, [1])[0];
+  if (compression !== 1) throw new Error('Compressed GeoTIFF (code '+compression+') is not supported offline. Please re-export as an uncompressed GeoTIFF (e.g. via QGIS: Translate, Compression=None) and try again.');
+  const samplesPerPixel = tagVal(277, [1])[0];
+  const rowsPerStrip = tagVal(278, [height])[0];
+  const stripOffsets = tagVal(273, null);
+  const stripByteCounts = tagVal(279, null);
+  const sampleFormat = tagVal(339, [1])[0];
+  if (!stripOffsets) throw new Error('This GeoTIFF is tiled, not stripped — tiled GeoTIFFs are not supported offline. Please re-export as a stripped GeoTIFF.');
+
+  const pixelScale = tagVal(33550, null);
+  const tiepoint = tagVal(33922, null);
+  if (!pixelScale || !tiepoint) throw new Error('This file has no embedded georeferencing (ModelPixelScale/ModelTiepoint tags) — is it a plain TIFF rather than a GeoTIFF?');
+  const dLon = pixelScale[0], dLat = pixelScale[1];
+  const [I,J,K,X,Y] = tiepoint;
+  const minLon = X - I*dLon;
+  const maxLat = Y + J*dLat;
+
+  let nodata = null;
+  if (tags[42113]) {
+    const str = tags[42113].map(b => String.fromCharCode(b)).join('').replace(/\0/g,'').trim();
+    const n = parseFloat(str);
+    if (!Number.isNaN(n)) nodata = n;
+  }
+
+  const data = new Float64Array(width*height);
+  const bytesPerSample = bitsPerSample/8;
+  let rowsRead = 0;
+  for (let s=0; s<stripOffsets.length; s++) {
+    const off = stripOffsets[s];
+    const rowsInStrip = Math.min(rowsPerStrip, height - rowsRead);
+    for (let r=0; r<rowsInStrip; r++) {
+      const globalRow = rowsRead + r;
+      for (let c=0; c<width; c++) {
+        const pos = off + (r*width + c*samplesPerPixel)*bytesPerSample;
+        let v;
+        if (sampleFormat === 3) v = bytesPerSample === 4 ? dv.getFloat32(pos, little) : dv.getFloat64(pos, little);
+        else if (sampleFormat === 2) v = bytesPerSample === 1 ? dv.getInt8(pos) : bytesPerSample === 2 ? dv.getInt16(pos, little) : dv.getInt32(pos, little);
+        else v = bytesPerSample === 1 ? dv.getUint8(pos) : bytesPerSample === 2 ? dv.getUint16(pos, little) : dv.getUint32(pos, little);
+        data[globalRow*width + c] = v;
+      }
+    }
+    rowsRead += rowsInStrip;
+  }
+  return { width, height, minLon, maxLat, dLon, dLat, data, nodata };
+}
+
+/* ============================= CSV DEM PARSER ============================= */
+function parseCSVDem(text) {
+  const rows = text.trim().split(/\r?\n/).map(r => r.split(',').map(s=>s.trim()));
+  // Detect XYZ list: 3 columns, header like lon,lat,elev OR all-numeric 3-col rows
+  const header = rows[0];
+  const isXYZHeader = header.length === 3 && /lon|lat|x|y|z|elev/i.test(header.join(','));
+  const firstDataRow = isXYZHeader ? rows[1] : rows[0];
+  const looksNumeric3col = firstDataRow && firstDataRow.length === 3 && firstDataRow.every(v => !Number.isNaN(parseFloat(v)));
+
+  if (isXYZHeader || (rows[0].length===3 && looksNumeric3col)) {
+    const startIdx = isXYZHeader ? 1 : 0;
+    const points = [];
+    for (let i=startIdx;i<rows.length;i++){
+      const r = rows[i];
+      if (r.length<3) continue;
+      const lon = parseFloat(r[0]), lat = parseFloat(r[1]), z = parseFloat(r[2]);
+      if ([lon,lat,z].some(Number.isNaN)) continue;
+      points.push({lon,lat,z});
+    }
+    if (points.length < 3) throw new Error('CSV (XYZ mode) needs at least 3 valid lon,lat,elevation rows.');
+    return { mode:'idw', points };
+  }
+
+  // Grid mode: first cell (0,0) ignored/empty, header row = lon values, first column = lat values
+  const lonHeader = rows[0].slice(1).map(parseFloat);
+  const lats = [];
+  const grid = [];
+  for (let i=1;i<rows.length;i++){
+    const r = rows[i];
+    if (r.length < 2) continue;
+    lats.push(parseFloat(r[0]));
+    grid.push(r.slice(1).map(v => v==='' ? NaN : parseFloat(v)));
+  }
+  if (lonHeader.length < 2 || lats.length < 2) throw new Error('CSV grid needs at least a 2x2 matrix of lon-header / lat-column / elevation values.');
+  const width = lonHeader.length, height = lats.length;
+  const dLon = lonHeader[1]-lonHeader[0];
+  const dLat = lats[0]-lats[1]; // lats expected descending (north to south) like a raster
+  const minLon = lonHeader[0];
+  const maxLat = lats[0];
+  const data = new Float64Array(width*height);
+  for (let r=0;r<height;r++) for (let c=0;c<width;c++) data[r*width+c] = grid[r][c];
+  return { mode:'grid', grid: { width,height,minLon,maxLat,dLon:Math.abs(dLon),dLat:Math.abs(dLat), data, nodata:null } };
+}
+
+/* IDW resampling of scattered XYZ points onto a regular grid for display/contouring */
+function idwToGrid(points, targetCells) {
+  let minLon=Infinity,maxLon=-Infinity,minLat=Infinity,maxLat=-Infinity;
+  points.forEach(p=>{ minLon=Math.min(minLon,p.lon); maxLon=Math.max(maxLon,p.lon); minLat=Math.min(minLat,p.lat); maxLat=Math.max(maxLat,p.lat); });
+  const spanLon = maxLon-minLon || 0.001, spanLat = maxLat-minLat || 0.001;
+  const aspect = spanLon/spanLat;
+  let width, height;
+  if (aspect >= 1) { width = targetCells; height = Math.max(4, Math.round(targetCells/aspect)); }
+  else { height = targetCells; width = Math.max(4, Math.round(targetCells*aspect)); }
+  const dLon = spanLon/(width-1), dLat = spanLat/(height-1);
+  const data = new Float64Array(width*height);
+  const power = 2;
+  for (let r=0;r<height;r++){
+    const lat = maxLat - r*dLat;
+    for (let c=0;c<width;c++){
+      const lon = minLon + c*dLon;
+      let wsum=0, vsum=0, exact=null;
+      for (const p of points){
+        const d2 = (p.lon-lon)**2 + (p.lat-lat)**2;
+        if (d2 < 1e-14) { exact = p.z; break; }
+        const w = 1/Math.pow(d2, power/2);
+        wsum += w; vsum += w*p.z;
+      }
+      data[r*width+c] = exact!=null ? exact : (wsum>0 ? vsum/wsum : 0);
+    }
+  }
+  return { width,height,minLon,maxLat,dLon,dLat,data,nodata:null };
+}
+
+function idwElevationAt(points, lon, lat) {
+  let wsum=0, vsum=0;
+  const power=2;
+  for (const p of points){
+    const d2 = (p.lon-lon)**2 + (p.lat-lat)**2;
+    if (d2 < 1e-14) return p.z;
+    const w = 1/Math.pow(d2, power/2);
+    wsum += w; vsum += w*p.z;
+  }
+  return wsum>0 ? vsum/wsum : null;
+}
+
+/* ============================= SIDEBAR / TOOLBAR UI ============================= */
+function buildSidebar() {
+  document.getElementById('sidebar').innerHTML = `
+    <div class="step" data-step="1">
+      <div class="step-head" onclick="toggleStep(1)"><span class="num">1</span> Load DEM (Elevation Data)</div>
+      <div class="step-body" id="stepBody1">
+        <small class="hint">Upload a GeoTIFF elevation raster (SRTM/Bhuvan, uncompressed) or a CSV. CSV can be a grid (lon header row + lat first column) or an XYZ point list (lon,lat,elevation).</small>
+        <label class="field">GeoTIFF (.tif)
+          <input type="file" id="demFileTif" accept=".tif,.tiff">
+        </label>
+        <label class="field">or CSV (.csv)
+          <input type="file" id="demFileCsv" accept=".csv">
+        </label>
+        <div style="border-top:1px dashed var(--gray-300);margin:4px 0;"></div>
+        <small class="hint">Or fetch elevation directly from the internet (Open-Meteo / Copernicus DEM, ~90m resolution) for the selected area — no file needed. Higher grid density = more requests = more likely to hit the free API's rate limit; if you see a 429/rate-limit message the app will retry automatically, or you can lower the density.</small>
+        <label class="field">Grid density (points per side)
+          <input type="number" id="onlineDemRes" value="20" min="5" max="60" step="1">
+        </label>
+        <button class="secondary" onclick="fetchDemFromInternet()">🌐 Fetch DEM from Internet</button>
+        <div id="demInfo" class="kvs" style="display:none;"></div>
+        <button class="ghost" onclick="clearDem()" id="clearDemBtn" style="display:none;">Clear DEM</button>
+      </div>
+    </div>
+
+    <div class="step" data-step="2">
+      <div class="step-head" onclick="toggleStep(2)"><span class="num">2</span> Select Area</div>
+      <div class="step-body collapsed" id="stepBody2">
+        <small class="hint">Draw a rectangle or polygon over the area of interest on the map.</small>
+        <div class="row">
+          <button class="secondary tool-btn" id="btnRect" onclick="setTool('rect')">▭ Rectangle</button>
+          <button class="secondary tool-btn" id="btnPoly" onclick="setTool('polygon')">⬠ Polygon</button>
+        </div>
+        <div class="row">
+          <button class="ghost" onclick="finishArea()">✓ Finish</button>
+          <button class="danger" onclick="clearArea()">Clear</button>
+        </div>
+        <div id="areaInfo" class="kvs"></div>
+      </div>
+    </div>
+
+    <div class="step" data-step="3">
+      <div class="step-head" onclick="toggleStep(3)"><span class="num">3</span> Contours</div>
+      <div class="step-body collapsed" id="stepBody3">
+        <label class="field">Contour interval (m)
+          <input type="number" id="contourInterval" value="1" min="0.1" step="0.1">
+        </label>
+        <button onclick="doGenerateContours()">Generate Contours</button>
+        <div id="contourInfo" class="kvs"></div>
+      </div>
+    </div>
+
+    <div class="step" data-step="4">
+      <div class="step-head" onclick="toggleStep(4)"><span class="num">4</span> Draw Road / Drain / Path</div>
+      <div class="step-body collapsed" id="stepBody4">
+        <small class="hint">Click along the map to place vertices, then Finish. This is the alignment chainage will follow.</small>
+        <button class="secondary tool-btn" id="btnRoad" onclick="setTool('road')">✎ Draw Path</button>
+        <div class="row">
+          <button class="ghost" onclick="finishRoad()">✓ Finish</button>
+          <button class="danger" onclick="clearRoad()">Clear</button>
+        </div>
+        <div id="roadInfo" class="kvs"></div>
+      </div>
+    </div>
+
+    <div class="step" data-step="5">
+      <div class="step-head" onclick="toggleStep(5)"><span class="num">5</span> Chainage &amp; RL</div>
+      <div class="step-body collapsed" id="stepBody5">
+        <label class="field">Chainage spacing (m)
+          <input type="number" id="chainageSpacing" value="20" min="1" step="1">
+        </label>
+        <button onclick="doGenerateChainages()">Generate Chainages</button>
+        <div id="chainageInfo" class="kvs"></div>
+        <button class="secondary" onclick="openProfileView()">📈 View longitudinal profile</button>
+        <button class="secondary" onclick="refineChainageElevationsOnline()">🌐 Refine with precise online elevation</button>
+        <small class="hint">Looks up exact elevation per chainage point from the internet (Copernicus DEM GLO-90) instead of interpolating from the DEM grid — more accurate along the alignment when online.</small>
+      </div>
+    </div>
+
+    <div class="step" data-step="6">
+      <div class="step-head" onclick="toggleStep(6)"><span class="num">6</span> Export &amp; Print</div>
+      <div class="step-body collapsed" id="stepBody6">
+        <small class="hint">Everything you can save or print — longitudinal profile PDF, full report, contour map, map image, CSV, GeoJSON and KML — is in one place.</small>
+        <button onclick="openExportSheet()">⬇ Export &amp; print options…</button>
+      </div>
+    </div>
+
+    <div class="step" data-step="7">
+      <div class="step-head" onclick="toggleStep(7)"><span class="num">7</span> 3D View</div>
+      <div class="step-body collapsed" id="stepBody7">
+        <small class="hint">Shows the selected area (or the whole loaded DEM, if nothing is selected) as a 3D terrain model with contour bands and your drawn road/drain/path draped on the surface — drag to rotate, use the Tilt slider or drag to change the viewing angle, pinch/scroll to zoom.</small>
+        <button onclick="open3DView()">🧊 Show 3D View</button>
+      </div>
+    </div>
+  `;
+}
+
+function buildToolbar() {
+  document.getElementById('toolbar').innerHTML = `
+    <button class="tool-btn active" id="tbPan" onclick="setTool('pan')">✋ Pan</button>
+    <button class="tool-btn" id="tbZoomIn" onclick="zoomBy(1.3)">＋</button>
+    <button class="tool-btn" id="tbZoomOut" onclick="zoomBy(1/1.3)">－</button>
+    <button class="tool-btn" onclick="fitToBounds()">⤢ Fit</button>
+    <div class="divider"></div>
+    <label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--gray-700);font-weight:600;">
+      🗺️ Basemap
+      <select id="basemapSelect" onchange="setBasemapMode(this.value)" style="padding:4px 6px;border:1px solid var(--gray-300);border-radius:6px;font-size:11.5px;">
+        <option value="off">Off (offline)</option>
+        <option value="street">Street (needs internet)</option>
+        <option value="satellite">Satellite (needs internet)</option>
+      </select>
+    </label>
+    <div class="divider"></div>
+    <span class="status" id="toolStatus">Tool: Pan</span>
+  `;
+}
+
+/* ============================= CANVAS INTERACTION (mouse + touch) ============================= */
+let isPanning = false, panStart = null, viewStart = null;
+let touchMode = null; // null | 'pan' | 'tap' | 'pinch'
+let touchStart = null, touchStartTime = 0, touchViewStart = null;
+let pinchStartDist = null, pinchStartScale = null, pinchStartMid = null, pinchStartOff = null, pinchStartGeo = null;
+
+function handleMapPoint(x, y) {
+  if (State.tool==='pan') return;
+  const g = screenToGeo(x,y);
+  if (State.tool==='rect') {
+    if (State.areaPoints.length>=2) State.areaPoints=[];
+    State.areaPoints.push(g);
+    if (State.areaPoints.length===2) {
+      const [p1,p2] = State.areaPoints;
+      State.areaPoints = [ {lon:p1.lon,lat:p1.lat}, {lon:p2.lon,lat:p1.lat}, {lon:p2.lon,lat:p2.lat}, {lon:p1.lon,lat:p2.lat} ];
+      State.areaClosed = true;
+      updateAreaInfo();
+    }
+  } else if (State.tool==='polygon') {
+    State.areaPoints.push(g);
+    updateAreaInfo();
+  } else if (State.tool==='road') {
+    State.roadPoints.push(g);
+    updateRoadInfo();
+  }
+  redraw();
+}
+
+function touchDist(t0, t1) { return Math.hypot(t1.clientX-t0.clientX, t1.clientY-t0.clientY); }
+function touchMid(t0, t1, rect) { return { x:(t0.clientX+t1.clientX)/2-rect.left, y:(t0.clientY+t1.clientY)/2-rect.top }; }
+
+function setupCanvasEvents() {
+  const canvas = getCanvas();
+
+  /* ---- Mouse (desktop) ---- */
+  canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX-rect.left, y = e.clientY-rect.top;
+    if (State.tool==='pan') {
+      isPanning = true; panStart = {x,y}; viewStart = {...State.view};
+      canvas.style.cursor='grabbing';
+    }
+  });
+  window.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX-rect.left, y = e.clientY-rect.top;
+    if (isPanning) {
+      State.view.offX = viewStart.offX + (x-panStart.x);
+      State.view.offY = viewStart.offY + (y-panStart.y);
+      redraw();
+    }
+    if (x>=0 && y>=0 && x<=rect.width && y<=rect.height && State.bounds) {
+      const g = screenToGeo(x,y);
+      document.getElementById('coordbox').textContent = `lon ${g.lon.toFixed(6)}, lat ${g.lat.toFixed(6)}`;
+    }
+  });
+  window.addEventListener('mouseup', () => { isPanning=false; if(State.tool==='pan') canvas.style.cursor='grab'; });
+
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    handleMapPoint(e.clientX-rect.left, e.clientY-rect.top);
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const factor = e.deltaY<0 ? 1.15 : 1/1.15;
+    zoomBy(factor, e);
+  }, {passive:false});
+
+  /* ---- Touch (Android / tablets) ---- */
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      const x = t.clientX-rect.left, y = t.clientY-rect.top;
+      touchStart = {x,y}; touchStartTime = Date.now(); touchViewStart = {...State.view};
+      touchMode = (State.tool==='pan') ? 'pan' : 'tap';
+    } else if (e.touches.length === 2) {
+      pinchStartDist = touchDist(e.touches[0], e.touches[1]);
+      pinchStartMid = touchMid(e.touches[0], e.touches[1], rect);
+      pinchStartScale = State.view.scale;
+      pinchStartOff = {...State.view};
+      pinchStartGeo = screenToGeo(pinchStartMid.x, pinchStartMid.y);
+      touchMode = 'pinch';
+    }
+  }, {passive:false});
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    if (touchMode === 'pan' && e.touches.length === 1) {
+      const t = e.touches[0];
+      const x = t.clientX-rect.left, y = t.clientY-rect.top;
+      State.view.offX = touchViewStart.offX + (x-touchStart.x);
+      State.view.offY = touchViewStart.offY + (y-touchStart.y);
+      redraw();
+    } else if (touchMode === 'tap' && e.touches.length === 1) {
+      const t = e.touches[0];
+      const x = t.clientX-rect.left, y = t.clientY-rect.top;
+      if (Math.hypot(x-touchStart.x, y-touchStart.y) > 12) touchMode = null; // moved too much — cancel tap, ignore drag for drawing tools
+    } else if (touchMode === 'pinch' && e.touches.length === 2) {
+      const dist = touchDist(e.touches[0], e.touches[1]);
+      const mid = touchMid(e.touches[0], e.touches[1], rect);
+      const factor = dist/pinchStartDist;
+      State.view.scale = pinchStartScale * factor;
+      State.view.offX = pinchStartOff.offX; State.view.offY = pinchStartOff.offY;
+      const tentative = geoToScreen(pinchStartGeo.lon, pinchStartGeo.lat);
+      State.view.offX = pinchStartOff.offX + (mid.x - tentative.x);
+      State.view.offY = pinchStartOff.offY + (mid.y - tentative.y);
+      redraw();
+    }
+  }, {passive:false});
+
+  canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    if (touchMode === 'tap' && touchStart) {
+      const dt = Date.now()-touchStartTime;
+      if (dt < 600) handleMapPoint(touchStart.x, touchStart.y);
+    }
+    if (e.touches.length === 0) {
+      touchMode = null; touchStart = null;
+    } else if (e.touches.length === 1) {
+      // dropped from pinch to single finger — restart single-touch tracking from here
+      const rect = canvas.getBoundingClientRect();
+      const t = e.touches[0];
+      touchStart = {x:t.clientX-rect.left, y:t.clientY-rect.top};
+      touchStartTime = Date.now();
+      touchViewStart = {...State.view};
+      touchMode = (State.tool==='pan') ? 'pan' : 'tap';
+    }
+  }, {passive:false});
+
+  window.addEventListener('resize', redraw);
+}
+
+function zoomBy(factor, e) {
+  const canvas = getCanvas();
+  const rect = canvas.getBoundingClientRect();
+  const cx = e ? e.clientX-rect.left : rect.width/2;
+  const cy = e ? e.clientY-rect.top : rect.height/2;
+  const before = screenToGeo(cx,cy);
+  State.view.scale *= factor;
+  const after = geoToScreen(before.lon, before.lat);
+  State.view.offX += (cx-after.x);
+  State.view.offY += (cy-after.y);
+  redraw();
+}
+
+function fitToBounds() { resetView(); redraw(); }
+
+function updateAreaInfo() {
+  const el = document.getElementById('areaInfo');
+  if (!State.areaPoints.length) { el.innerHTML=''; return; }
+  el.innerHTML = `<span>Vertices:</span><b>${State.areaPoints.length}</b><span>Type:</span><b>${State.areaType||'-'}</b><span>Closed:</span><b>${State.areaClosed?'yes':'no'}</b>`;
+}
+function finishArea() {
+  if (State.tool==='polygon' && State.areaPoints.length>=3) State.areaClosed=true;
+  if (!State.areaClosed) {
+    toast(State.tool==='rect' ? 'Tap two opposite corners of the rectangle first.' : 'Add at least 3 points to close the polygon.', true);
+    return false;
+  }
+  updateAreaInfo(); redraw();
+  toast('Area selected ('+State.areaPoints.length+' corners). You can now generate contours (Step 3).');
+  if (State.tool!=='pan') setTool('pan');
+  return true;
+}
+function clearArea() { State.areaPoints=[]; State.areaClosed=false; updateAreaInfo(); redraw(); }
+
+function updateRoadInfo() {
+  const el = document.getElementById('roadInfo');
+  if (!State.roadPoints.length) { el.innerHTML=''; return; }
+  let len=0;
+  for (let i=1;i<State.roadPoints.length;i++) len += haversine(State.roadPoints[i-1].lon,State.roadPoints[i-1].lat,State.roadPoints[i].lon,State.roadPoints[i].lat);
+  el.innerHTML = `<span>Vertices:</span><b>${State.roadPoints.length}</b><span>Length:</span><b>${len.toFixed(1)} m</b>`;
+}
+function finishRoad() {
+  if (State.roadPoints.length<2) { toast('Add at least 2 points to define a path.', true); return; }
+  updateRoadInfo();
+  toast('Path finished — '+State.roadPoints.length+' points. Now generate chainages.');
+  if (State.tool!=='pan') setTool('pan');
+  openStep(5);
+}
+function clearRoad() { State.roadPoints=[]; State.chainages=[]; updateRoadInfo(); closeOverlay('profileView'); redraw(); }
+
+/* ---- floating drawing bar (Undo / Finish / Clear) so drawing never needs the menu ---- */
+function drawUndo() {
+  if (State.tool==='road') { State.roadPoints.pop(); updateRoadInfo(); }
+  else if (State.tool==='rect') { State.areaPoints=[]; State.areaClosed=false; updateAreaInfo(); }
+  else if (State.tool==='polygon') { State.areaPoints.pop(); State.areaClosed=false; updateAreaInfo(); }
+  redraw();
+}
+function drawFinish() { if (State.tool==='road') finishRoad(); else finishArea(); }
+function drawClear() { if (State.tool==='road') clearRoad(); else clearArea(); }
+function dismissEmptyState() { State.emptyDismissed = true; updateUIState(); }
+
+/* ---- keeps the drawing bar, welcome card and step check-marks in sync with the app state ---- */
+function updateUIState() {
+  const sig = [State.tool, State.roadPoints.length, State.areaPoints.length, State.areaClosed, !!State.dem,
+               State.contourSegments.length>0, State.chainages.length, !!State.emptyDismissed].join('|');
+  if (sig === State._uiSig) return;
+  State._uiSig = sig;
+  const bar = document.getElementById('drawBar');
+  if (bar) {
+    const t = State.tool;
+    if (t === 'pan') bar.style.display = 'none';
+    else {
+      const n = (t === 'road') ? State.roadPoints.length : State.areaPoints.length;
+      const label = { rect:'Rectangle — tap two opposite corners', polygon:'Polygon — tap each corner, then Finish', road:'Path — tap along the alignment, then Finish' }[t];
+      document.getElementById('drawBarLabel').textContent = label + ' · ' + n + (n===1 ? ' point' : ' points');
+      bar.style.display = 'flex';
+    }
+  }
+  const es = document.getElementById('emptyState');
+  if (es) es.style.display = (State.dem || State.emptyDismissed) ? 'none' : 'block';
+  try {
+    const done = { 1:!!State.dem, 2:(State.areaClosed && State.areaPoints.length>=3), 3:State.contourSegments.length>0, 4:State.roadPoints.length>=2, 5:State.chainages.length>0 };
+    Object.keys(done).forEach(n => {
+      const head = document.querySelector('.step[data-step="'+n+'"] .step-head');
+      if (!head) return;
+      head.classList.toggle('done', !!done[n]);
+      const num = head.querySelector('.num');
+      if (num) num.textContent = done[n] ? '✓' : n;
+    });
+  } catch(e) { /* cosmetic only */ }
+}
+
+/* ============================= DEM LOADING ============================= */
+function setDemFromGrid(grid, sourceName) {
+  State.dem = grid;
+  State.demMode = 'grid';
+  State.idwPoints = null;
+  State.demSourceName = sourceName;
+  finishDemLoad();
+}
+function setDemFromIDW(points, sourceName) {
+  State.idwPoints = points;
+  State.demMode = 'idw';
+  State.demSourceName = sourceName;
+  State.dem = idwToGrid(points, 200); // resampled grid for display + contouring
+  finishDemLoad();
+}
+function finishDemLoad() {
+  State.rasterCanvas = buildRasterCanvas(State.dem);
+  const g = State.dem;
+  State.bounds = { minLon:g.minLon, maxLon:g.minLon+g.width*g.dLon, minLat:g.maxLat-g.height*g.dLat, maxLat:g.maxLat };
+  resetView();
+  // approx resolution in metres (at grid's vertical-center latitude)
+  const midLat = (State.bounds.minLat+State.bounds.maxLat)/2;
+  const resX = haversine(g.minLon, midLat, g.minLon+g.dLon, midLat);
+  const resY = haversine(g.minLon, midLat, g.minLon, midLat+g.dLat);
+  State.demResM = {x:resX, y:resY};
+  const info = document.getElementById('demInfo');
+  info.style.display='grid';
+  info.innerHTML = `<span>Source:</span><b>${State.demSourceName}</b>
+    <span>Grid size:</span><b>${g.width} × ${g.height}</b>
+    <span>Resolution:</span><b>~${resX.toFixed(1)} × ${resY.toFixed(1)} m/px</b>
+    <span>Elevation range:</span><b>${State.demMinV.toFixed(1)} – ${State.demMaxV.toFixed(1)} m</b>`;
+  document.getElementById('clearDemBtn').style.display='inline-block';
+  redraw();
+  toast('DEM loaded: '+State.demSourceName);
+}
+function clearDem() {
+  State.dem=null; State.demMode=null; State.idwPoints=null; State.rasterCanvas=null; State.contourSegments=[];
+  document.getElementById('demInfo').style.display='none';
+  document.getElementById('clearDemBtn').style.display='none';
+  document.getElementById('contourInfo').innerHTML='';
+  setDefaultBounds();
+  redraw();
+}
+function setDefaultBounds() {
+  const d = 0.02;
+  State.bounds = { minLon:DEFAULT_CENTER.lon-d, maxLon:DEFAULT_CENTER.lon+d, minLat:DEFAULT_CENTER.lat-d, maxLat:DEFAULT_CENTER.lat+d };
+  resetView();
+}
+
+// Wired from init(), AFTER buildSidebar() has created these <input> elements — attaching on DOMContentLoaded
+// (which always fires first, before window 'load' calls buildSidebar) meant getElementById returned null and
+// this threw immediately, so the GeoTIFF/CSV file pickers never actually worked. Fixed by wiring them here.
+function wireDemFileInputs() {
+  document.getElementById('demFileTif').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; if(!f) return;
+    try {
+      const buf = await f.arrayBuffer();
+      const grid = parseGeoTIFF(buf);
+      setDemFromGrid(grid, f.name);
+    } catch(err) { toast('GeoTIFF error: '+err.message, true); }
+  });
+  document.getElementById('demFileCsv').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; if(!f) return;
+    try {
+      const text = await f.text();
+      const parsed = parseCSVDem(text);
+      if (parsed.mode==='grid') setDemFromGrid(parsed.grid, f.name);
+      else setDemFromIDW(parsed.points, f.name);
+    } catch(err) { toast('CSV error: '+err.message, true); }
+  });
+}
+
+function toggleStep(n) {
+  const body = document.getElementById('stepBody'+n);
+  body.classList.toggle('collapsed');
+}
+function openStep(n) {
+  const body = document.getElementById('stepBody'+n);
+  if (body) body.classList.remove('collapsed');
+  if (window.innerWidth <= 820) toggleSidebar(true);
+}
+
+function toggleSidebar(force) {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebarBackdrop');
+  const open = (typeof force === 'boolean') ? force : !sb.classList.contains('open');
+  sb.classList.toggle('open', open);
+  bd.classList.toggle('open', open);
+}
+function closeSidebarOnMobile() {
+  if (window.innerWidth <= 820) toggleSidebar(false);
+}
+
+function setTool(t) {
+  State.tool = t;
+  ['tbPan'].forEach(id=>document.getElementById(id) && document.getElementById(id).classList.remove('active'));
+  ['btnRect','btnPoly','btnRoad'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('active'); });
+  const map = {pan:'tbPan', rect:'btnRect', polygon:'btnPoly', road:'btnRoad'};
+  const el = document.getElementById(map[t]);
+  if (el) el.classList.add('active');
+  document.getElementById('toolStatus').textContent = 'Tool: ' + ({pan:'Pan',rect:'Rectangle select',polygon:'Polygon select',road:'Draw path'}[t]);
+  getCanvas().style.cursor = (t==='pan') ? 'grab' : 'crosshair';
+  if (t==='rect' || t==='polygon') { State.areaPoints=[]; State.areaType=t; State.areaClosed=false; }
+  if (t==='road') { /* keep existing road points to allow continuing */ }
+  updateUIState();
+  closeSidebarOnMobile();
+}
+
+function elevColor(t) { // t in [0,1]
+  // hypsometric-ish ramp: green -> yellow-green -> tan -> brown -> white
+  const stops = [
+    [0.00, 47,111,47],
+    [0.25, 168,201,63],
+    [0.50, 232,210,76],
+    [0.72, 201,138,58],
+    [0.90, 138,74,42],
+    [1.00, 255,255,255],
+  ];
+  t = Math.max(0, Math.min(1, t));
+  for (let i=0;i<stops.length-1;i++){
+    const [t0,r0,g0,b0] = stops[i], [t1,r1,g1,b1] = stops[i+1];
+    if (t>=t0 && t<=t1) {
+      const f = (t1>t0) ? (t-t0)/(t1-t0) : 0;
+      return [Math.round(r0+f*(r1-r0)), Math.round(g0+f*(g1-g0)), Math.round(b0+f*(b1-b0))];
+    }
+  }
+  return [255,255,255];
+}
+
+function buildRasterCanvas(grid) {
+  const {width,height,data,nodata} = grid;
+  let minV=Infinity,maxV=-Infinity;
+  for (let i=0;i<data.length;i++){
+    const v=data[i];
+    if (nodata!=null && v===nodata) continue;
+    if (Number.isNaN(v)) continue;
+    if (v<minV) minV=v; if (v>maxV) maxV=v;
+  }
+  if (!Number.isFinite(minV)) { minV=0; maxV=1; }
+  const cnv = document.createElement('canvas');
+  cnv.width = width; cnv.height = height;
+  const ctx = cnv.getContext('2d');
+  const img = ctx.createImageData(width,height);
+  for (let i=0;i<width*height;i++){
+    const v = data[i];
+    const isNodata = (nodata!=null && v===nodata) || Number.isNaN(v);
+    let rgb;
+    if (isNodata) rgb=[210,218,226];
+    else rgb = elevColor((v-minV)/((maxV-minV)||1));
+    img.data[i*4]=rgb[0]; img.data[i*4+1]=rgb[1]; img.data[i*4+2]=rgb[2]; img.data[i*4+3]=255;
+  }
+  ctx.putImageData(img,0,0);
+  State.demMinV = minV; State.demMaxV = maxV;
+  return cnv;
+}
+
+/* ============================= MAP VIEW TRANSFORM ============================= */
+// State.bounds: geo bounding box currently framed. view {scale,offX,offY} pans/zooms within it.
+function getCanvas() { return document.getElementById('mapCanvas'); }
+function canvasSize() { const c=getCanvas(); return {w:c.clientWidth, h:c.clientHeight}; }
+
+function geoToScreen(lon, lat) {
+  const b = State.bounds;
+  const {w,h} = canvasSize();
+  const pad = 30;
+  const spanLon = (b.maxLon-b.minLon)||0.001, spanLat=(b.maxLat-b.minLat)||0.001;
+  const baseScale = Math.min((w-2*pad)/spanLon, (h-2*pad)/spanLat);
+  const u = (lon-b.minLon), v=(b.maxLat-lat);
+  const x = pad + u*baseScale*State.view.scale + State.view.offX;
+  const y = pad + v*baseScale*State.view.scale + State.view.offY;
+  return {x,y};
+}
+function screenToGeo(x,y) {
+  const b = State.bounds;
+  const {w,h} = canvasSize();
+  const pad = 30;
+  const spanLon = (b.maxLon-b.minLon)||0.001, spanLat=(b.maxLat-b.minLat)||0.001;
+  const baseScale = Math.min((w-2*pad)/spanLon, (h-2*pad)/spanLat);
+  const u = (x - pad - State.view.offX)/(baseScale*State.view.scale);
+  const v = (y - pad - State.view.offY)/(baseScale*State.view.scale);
+  return { lon: b.minLon+u, lat: b.maxLat-v };
+}
+
+function resetView() { State.view = {scale:1, offX:0, offY:0}; }
+
+function redraw() {
+  const canvas = getCanvas();
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== w*dpr || canvas.height !== h*dpr) { canvas.width = w*dpr; canvas.height = h*dpr; }
+  // A canvas that has drawn a tile from a site without CORS stays "tainted" (un-exportable) until its bitmap is
+  // reset. When no basemap is showing, reset it so PNG / print exports work again.
+  if (State._taintPossible && State.basemapMode === 'off') { canvas.width = canvas.width; State._taintPossible = false; }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = '#dfe9f2';
+  ctx.fillRect(0,0,w,h);
+
+  if (!State.bounds) return;
+
+  // Basemap tiles (optional, needs internet): street or satellite
+  if (State.basemapMode !== 'off') drawTileLayer(ctx, w, h);
+
+  // DEM raster
+  if (State.rasterCanvas) {
+    const tl = geoToScreen(State.dem.minLon, State.dem.maxLat);
+    const br = geoToScreen(State.dem.minLon + State.dem.width*State.dem.dLon, State.dem.maxLat - State.dem.height*State.dem.dLat);
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalAlpha = (State.basemapMode !== 'off') ? (State.basemapMode==='satellite' ? 0.4 : 0.55) : 1;
+    ctx.drawImage(State.rasterCanvas, tl.x, tl.y, br.x-tl.x, br.y-tl.y);
+    ctx.globalAlpha = 1;
+  }
+
+  // lat/lon grid overlay
+  drawGraticule(ctx, w, h);
+
+  // contours (with periodic elevation-value labels)
+  if (State.contourSegments.length && State.dem) {
+    ctx.strokeStyle = 'rgba(90,60,20,0.65)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const s of State.contourSegments) {
+      const g1 = gridToGeo(State.dem, s.x1, s.y1);
+      const g2 = gridToGeo(State.dem, s.x2, s.y2);
+      const p1 = geoToScreen(g1.lon, g1.lat), p2 = geoToScreen(g2.lon, g2.lat);
+      ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y);
+    }
+    ctx.stroke();
+
+    // Periodic value labels: one per (level, screen-space bucket) so labels repeat readably across the whole map
+    const labeledBuckets = new Set();
+    const bucketPx = 130;
+    ctx.font = '10px sans-serif';
+    for (const s of State.contourSegments) {
+      const g1 = gridToGeo(State.dem, s.x1, s.y1);
+      const g2 = gridToGeo(State.dem, s.x2, s.y2);
+      const p1 = geoToScreen(g1.lon, g1.lat), p2 = geoToScreen(g2.lon, g2.lat);
+      const mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
+      if (mx<0||my<0||mx>w||my>h) continue;
+      const key = s.level+'_'+Math.round(mx/bucketPx)+'_'+Math.round(my/bucketPx);
+      if (labeledBuckets.has(key)) continue;
+      labeledBuckets.add(key);
+      const label = s.level.toFixed(1)+'m';
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(255,255,255,.82)';
+      ctx.fillRect(mx-tw/2-2, my-9, tw+4, 12);
+      ctx.fillStyle = '#5a3c14';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, mx, my+1);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  // area selection
+  if (State.areaPoints.length) {
+    ctx.fillStyle = 'rgba(20,118,196,0.15)';
+    ctx.strokeStyle = '#0f5c96';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    State.areaPoints.forEach((p,i)=>{
+      const s = geoToScreen(p.lon,p.lat);
+      if (i===0) ctx.moveTo(s.x,s.y); else ctx.lineTo(s.x,s.y);
+    });
+    if (State.areaClosed) ctx.closePath();
+    ctx.stroke();
+    if (State.areaClosed) ctx.fill();
+    State.areaPoints.forEach(p=>{
+      const s = geoToScreen(p.lon,p.lat);
+      ctx.fillStyle = '#0f5c96'; ctx.beginPath(); ctx.arc(s.x,s.y,3.5,0,7); ctx.fill();
+    });
+  }
+
+  // road/drain/path
+  if (State.roadPoints.length) {
+    ctx.strokeStyle = '#c0392b';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    State.roadPoints.forEach((p,i)=>{
+      const s = geoToScreen(p.lon,p.lat);
+      if (i===0) ctx.moveTo(s.x,s.y); else ctx.lineTo(s.x,s.y);
+    });
+    ctx.stroke();
+    State.roadPoints.forEach((p,i)=>{
+      const s = geoToScreen(p.lon,p.lat);
+      ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.arc(s.x,s.y,3.5,0,7); ctx.fill();
+    });
+  }
+
+  // chainage markers
+  if (State.chainages.length) {
+    ctx.fillStyle = '#0b3d66';
+    State.chainages.forEach(p=>{
+      const s = geoToScreen(p.lon,p.lat);
+      ctx.beginPath(); ctx.arc(s.x,s.y,2.5,0,7); ctx.fill();
+    });
+  }
+
+  document.getElementById('legend').style.display = State.rasterCanvas ? 'block' : 'none';
+  if (State.rasterCanvas) {
+    document.getElementById('legendMin').textContent = State.demMinV.toFixed(1)+'m';
+    document.getElementById('legendMax').textContent = State.demMaxV.toFixed(1)+'m';
+  }
+  try { updateUIState(); } catch(e) { /* cosmetic only */ }
+}
+
+function drawGraticule(ctx, w, h) {
+  const b = State.bounds;
+  const spanLon = b.maxLon-b.minLon, spanLat = b.maxLat-b.minLat;
+  const niceStep = (span) => {
+    const raw = span/5;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw/mag;
+    let step = norm<1.5?1:norm<3.5?2:norm<7.5?5:10;
+    return step*mag;
+  };
+  const stepLon = niceStep(spanLon), stepLat = niceStep(spanLat);
+  ctx.strokeStyle = 'rgba(15,60,110,0.15)';
+  ctx.fillStyle = 'rgba(15,60,110,0.55)';
+  ctx.font = '10px sans-serif';
+  ctx.lineWidth = 1;
+  const startLon = Math.ceil(b.minLon/stepLon)*stepLon;
+  for (let lon=startLon; lon<=b.maxLon; lon+=stepLon) {
+    const p = geoToScreen(lon, b.minLat);
+    const p2 = geoToScreen(lon, b.maxLat);
+    ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    ctx.fillText(lon.toFixed(4)+'°E', p.x+2, h-4);
+  }
+  const startLat = Math.ceil(b.minLat/stepLat)*stepLat;
+  for (let lat=startLat; lat<=b.maxLat; lat+=stepLat) {
+    const p = geoToScreen(b.minLon, lat);
+    const p2 = geoToScreen(b.maxLon, lat);
+    ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    ctx.fillText(lat.toFixed(4)+'°N', 2, p.y-2);
+  }
+}
+
+/* ============================= CONTOUR GENERATION (marching squares) ============================= */
+function computeContours(grid, interval) {
+  const {width, height, data, nodata} = grid;
+  let minV=Infinity, maxV=-Infinity;
+  for (let i=0;i<data.length;i++){
+    const v=data[i];
+    if (nodata!=null && v===nodata) continue;
+    if (Number.isNaN(v)) continue;
+    if (v<minV) minV=v;
+    if (v>maxV) maxV=v;
+  }
+  if (!Number.isFinite(minV)) return { segments: [], minV:0, maxV:0 };
+  const startLevel = Math.ceil(minV/interval)*interval;
+  const levels = [];
+  for (let lv=startLevel; lv<=maxV; lv+=interval) levels.push(Number(lv.toFixed(6)));
+
+  const val = (r,c) => {
+    const v = data[r*width+c];
+    return (nodata!=null && v===nodata) ? NaN : v;
+  };
+  const segments = [];
+  for (const level of levels) {
+    const interp = (r0,c0,v0,r1,c1,v1) => {
+      const t = (level - v0) / (v1 - v0);
+      return { c: c0 + t*(c1-c0), r: r0 + t*(r1-r0) };
+    };
+    for (let r=0; r<height-1; r++){
+      for (let c=0; c<width-1; c++){
+        const tl = val(r,c), tr = val(r,c+1), bl = val(r+1,c), br = val(r+1,c+1);
+        if ([tl,tr,bl,br].some(Number.isNaN)) continue;
+        let idx = 0;
+        if (tl > level) idx |= 8;
+        if (tr > level) idx |= 4;
+        if (br > level) idx |= 2;
+        if (bl > level) idx |= 1;
+        if (idx === 0 || idx === 15) continue;
+        const top = () => interp(r,c,tl,r,c+1,tr);
+        const right = () => interp(r,c+1,tr,r+1,c+1,br);
+        const bottom = () => interp(r+1,c,bl,r+1,c+1,br);
+        const left = () => interp(r,c,tl,r+1,c,bl);
+        const pairs = {
+          1:[left,bottom], 2:[bottom,right], 3:[left,right],
+          4:[top,right], 5:[top,left,bottom,right],
+          6:[top,bottom], 7:[top,left],
+          8:[top,left], 9:[top,bottom],
+          10:[top,right,left,bottom],
+          11:[top,right], 12:[left,right],
+          13:[bottom,right], 14:[left,bottom]
+        };
+        const p = pairs[idx];
+        if (!p) continue;
+        if (idx===5 || idx===10) {
+          const a=p[0](), b=p[1](), c2=p[2](), d=p[3]();
+          segments.push({level,x1:a.c,y1:a.r,x2:b.c,y2:b.r});
+          segments.push({level,x1:c2.c,y1:c2.r,x2:d.c,y2:d.r});
+        } else {
+          const a=p[0](), b=p[1]();
+          segments.push({level,x1:a.c,y1:a.r,x2:b.c,y2:b.r});
+        }
+      }
+    }
+  }
+  return { segments, minV, maxV };
+}
+
+function gridToGeo(grid, col, row) {
+  return { lon: grid.minLon + col*grid.dLon, lat: grid.maxLat - row*grid.dLat };
+}
+function geoToGridFrac(grid, lon, lat) {
+  return { col: (lon-grid.minLon)/grid.dLon, row: (grid.maxLat-lat)/grid.dLat };
+}
+
+/* ============================= 3D TERRAIN VIEW ============================= */
+function pointInPolygon(lon, lat, poly) {
+  let inside = false;
+  for (let i=0, j=poly.length-1; i<poly.length; j=i++) {
+    const xi=poly[i].lon, yi=poly[i].lat, xj=poly[j].lon, yj=poly[j].lat;
+    const intersect = ((yi>lat) !== (yj>lat)) && (lon < (xj-xi)*(lat-yi)/((yj-yi)||1e-12) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function buildSubgrid(bbox, maskPoly, gridN) {
+  const width = gridN, height = gridN;
+  const dLon = (bbox.maxLon-bbox.minLon)/(width-1);
+  const dLat = (bbox.maxLat-bbox.minLat)/(height-1);
+  const data = new Float64Array(width*height);
+  for (let r=0;r<height;r++){
+    const lat = bbox.maxLat - r*dLat;
+    for (let c=0;c<width;c++){
+      const lon = bbox.minLon + c*dLon;
+      let e = getElevation(lon, lat);
+      if (e!=null && maskPoly && !pointInPolygon(lon, lat, maskPoly)) e = null;
+      data[r*width+c] = (e==null || Number.isNaN(e)) ? NaN : e;
+    }
+  }
+  return { width, height, minLon:bbox.minLon, maxLat:bbox.maxLat, dLon, dLat, data, nodata:null };
+}
+
+function get3DAreaBBoxAndMask() {
+  if (State.areaClosed && State.areaPoints.length>=3) {
+    const lons = State.areaPoints.map(p=>p.lon), lats = State.areaPoints.map(p=>p.lat);
+    const bbox = { minLon:Math.min(...lons), maxLon:Math.max(...lons), minLat:Math.min(...lats), maxLat:Math.max(...lats) };
+    const mask = (State.areaType==='polygon') ? State.areaPoints : null; // rectangle needs no mask (bbox == area)
+    return { bbox, mask };
+  }
+  if (State.dem) {
+    const bbox = { minLon:State.dem.minLon, maxLon:State.dem.minLon+State.dem.width*State.dem.dLon, minLat:State.dem.maxLat-State.dem.height*State.dem.dLat, maxLat:State.dem.maxLat };
+    return { bbox, mask:null };
+  }
+  return null;
+}
+
+function project3D(gx, gy, gz, v) {
+  // gx = east-west, gy = north-south (depth axis before rotation), gz = elevation
+  const x1 = gx*Math.cos(v.yaw) + gy*Math.sin(v.yaw);
+  const z1 = -gx*Math.sin(v.yaw) + gy*Math.cos(v.yaw);
+  const y1 = gz;
+  const y2 = y1*Math.cos(v.pitch) - z1*Math.sin(v.pitch);
+  const z2 = y1*Math.sin(v.pitch) + z1*Math.cos(v.pitch);
+  const x2 = x1;
+  const focal = 900;
+  const persp = focal / (focal + z2);
+  return { x: x2*v.scale*persp, y: -y2*v.scale*persp, depth: z2 };
+}
+
+function rebuild3DTerrain() {
+  const areaInfo = get3DAreaBBoxAndMask();
+  if (!areaInfo) { toast('Load a DEM first.', true); return; }
+  const gridN = 46;
+  const sub = buildSubgrid(areaInfo.bbox, areaInfo.mask, gridN);
+  let minE=Infinity, maxE=-Infinity;
+  for (let i=0;i<sub.data.length;i++){ const v=sub.data[i]; if(!Number.isNaN(v)){ if(v<minE)minE=v; if(v>maxE)maxE=v; } }
+  if (!Number.isFinite(minE)) { toast('No elevation data available in this area.', true); return; }
+  const elevMid = (minE+maxE)/2;
+  const horizExtent = 400; // world units spanning the grid horizontally
+  const cellSize = horizExtent/(gridN-1);
+  const interval = parseFloat(document.getElementById('v3dInterval').value) || 1;
+  const contours = computeContours(sub, interval);
+
+  if (!State.v3d) {
+    State.v3d = { yaw: -0.55, pitch: 0.95, scale: 3.2, exaggeration: 10 };
+  }
+  State.v3d.grid = sub;
+  State.v3d.minE = minE; State.v3d.maxE = maxE; State.v3d.elevMid = elevMid;
+  State.v3d.cellSize = cellSize;
+  State.v3d.contours = contours;
+  render3D();
+}
+
+function worldXYZ(col, row, elev) {
+  const s = State.v3d;
+  const gx = (col - (s.grid.width-1)/2) * s.cellSize;
+  const gy = (row - (s.grid.height-1)/2) * s.cellSize;
+  const gz = Number.isNaN(elev) ? 0 : (elev - s.elevMid) * s.exaggeration * (s.cellSize/ ((s.maxE-s.minE)||1) ) * 0.6;
+  return {gx,gy,gz};
+}
+
+function render3D() {
+  const canvas = document.getElementById('v3dCanvas');
+  const s = State.v3d;
+  if (!s || !s.grid) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== w*dpr || canvas.height !== h*dpr) { canvas.width = w*dpr; canvas.height = h*dpr; }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle = '#10202f';
+  ctx.fillRect(0,0,w,h);
+  const cx = w/2, cy = h/2 + h*0.08;
+
+  const grid = s.grid;
+  const light = {x:-0.5, y:0.8, z:-0.4};
+  const lightLen = Math.hypot(light.x,light.y,light.z);
+  light.x/=lightLen; light.y/=lightLen; light.z/=lightLen;
+
+  const drawables = [];
+
+  // Terrain quads
+  for (let r=0;r<grid.height-1;r++){
+    for (let c=0;c<grid.width-1;c++){
+      const e00=grid.data[r*grid.width+c], e10=grid.data[r*grid.width+c+1];
+      const e01=grid.data[(r+1)*grid.width+c], e11=grid.data[(r+1)*grid.width+c+1];
+      if ([e00,e10,e01,e11].some(Number.isNaN)) continue;
+      const p00=worldXYZ(c,r,e00), p10=worldXYZ(c+1,r,e10), p01=worldXYZ(c,r+1,e01), p11=worldXYZ(c+1,r+1,e11);
+      const s00=project3D(p00.gx,p00.gy,p00.gz,s), s10=project3D(p10.gx,p10.gy,p10.gz,s);
+      const s01=project3D(p01.gx,p01.gy,p01.gz,s), s11=project3D(p11.gx,p11.gy,p11.gz,s);
+      const ux=p10.gx-p00.gx, uy=p10.gy-p00.gy, uz=p10.gz-p00.gz;
+      const vx=p01.gx-p00.gx, vy=p01.gy-p00.gy, vz=p01.gz-p00.gz;
+      let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx;
+      const nlen = Math.hypot(nx,ny,nz)||1; nx/=nlen; ny/=nlen; nz/=nlen;
+      if (ny<0){ nx=-nx; ny=-ny; nz=-nz; }
+      const brightness = Math.max(0.35, Math.min(1, 0.55 + 0.5*(nx*light.x+ny*light.y+nz*light.z)));
+      const avgE = (e00+e10+e01+e11)/4;
+      const t = (avgE-s.minE)/((s.maxE-s.minE)||1);
+      const [r0,g0,b0] = elevColor(t);
+      const depth = (s00.depth+s10.depth+s01.depth+s11.depth)/4;
+      const color = `rgb(${Math.round(r0*brightness)},${Math.round(g0*brightness)},${Math.round(b0*brightness)})`;
+      drawables.push({ depth, draw: () => {
+        ctx.beginPath();
+        ctx.moveTo(cx+s00.x, cy+s00.y); ctx.lineTo(cx+s10.x, cy+s10.y);
+        ctx.lineTo(cx+s11.x, cy+s11.y); ctx.lineTo(cx+s01.x, cy+s01.y);
+        ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+      }});
+    }
+  }
+
+  // Contour lines (lifted slightly above surface); one elevation label per level
+  const labelled = new Set();
+  s.contours.segments.forEach(seg => {
+    const p1w = worldXYZ(seg.x1, seg.y1, seg.level);
+    const p2w = worldXYZ(seg.x2, seg.y2, seg.level);
+    const lift = 0.4;
+    const p1 = project3D(p1w.gx, p1w.gy, p1w.gz+lift, s);
+    const p2 = project3D(p2w.gx, p2w.gy, p2w.gz+lift, s);
+    const depth = (p1.depth+p2.depth)/2 - 0.01;
+    const showLabel = !labelled.has(seg.level);
+    if (showLabel) labelled.add(seg.level);
+    drawables.push({ depth, draw: () => {
+      ctx.strokeStyle = 'rgba(50,30,10,0.65)';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(cx+p1.x, cy+p1.y); ctx.lineTo(cx+p2.x, cy+p2.y); ctx.stroke();
+      if (showLabel) {
+        ctx.font = '10px sans-serif';
+        const tw = ctx.measureText(seg.level.toFixed(1)).width;
+        ctx.fillStyle = 'rgba(255,255,255,.85)';
+        ctx.fillRect(cx+p1.x-2, cy+p1.y-11, tw+4, 13);
+        ctx.fillStyle = '#0b3d66';
+        ctx.fillText(seg.level.toFixed(1)+'m', cx+p1.x, cy+p1.y-1);
+      }
+    }});
+  });
+
+  // Road / drain / path, draped on the terrain (skips any stretch where elevation is unavailable)
+  if (State.roadPoints.length >= 2) {
+    const roadWorld = State.roadPoints.map(p => {
+      const frac = geoToGridFrac(grid, p.lon, p.lat);
+      const elev = getElevation(p.lon, p.lat);
+      return { col:frac.col, row:frac.row, elev };
+    });
+    const lift = 0.7;
+    for (let i=1; i<roadWorld.length; i++) {
+      const a = roadWorld[i-1], b = roadWorld[i];
+      if (a.elev==null || b.elev==null) continue;
+      const aw = worldXYZ(a.col, a.row, a.elev), bw = worldXYZ(b.col, b.row, b.elev);
+      const p1 = project3D(aw.gx, aw.gy, aw.gz+lift, s), p2 = project3D(bw.gx, bw.gy, bw.gz+lift, s);
+      const depth = (p1.depth+p2.depth)/2 - 0.02;
+      drawables.push({ depth, draw: () => {
+        ctx.strokeStyle = '#c0392b';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath(); ctx.moveTo(cx+p1.x, cy+p1.y); ctx.lineTo(cx+p2.x, cy+p2.y); ctx.stroke();
+      }});
+    }
+    // Chainage markers along the path, using their already-computed RL where available
+    State.chainages.forEach(pt => {
+      const rl = pt.rl!=null ? pt.rl : getElevation(pt.lon, pt.lat);
+      if (rl==null) return;
+      const frac = geoToGridFrac(grid, pt.lon, pt.lat);
+      const w3 = worldXYZ(frac.col, frac.row, rl);
+      const pr = project3D(w3.gx, w3.gy, w3.gz+lift+0.1, s);
+      drawables.push({ depth: pr.depth-0.03, draw: () => {
+        ctx.fillStyle = '#0b3d66';
+        ctx.beginPath(); ctx.arc(cx+pr.x, cy+pr.y, 3, 0, 7); ctx.fill();
+      }});
+    });
+  }
+
+  drawables.sort((a,b)=> b.depth - a.depth);
+  drawables.forEach(d=>d.draw());
+
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  ctx.font = '10.5px sans-serif';
+  ctx.fillText('Elevation range: '+s.minE.toFixed(1)+' – '+s.maxE.toFixed(1)+' m   |   Height exaggeration: '+s.exaggeration+'×', 12, 18);
+}
+
+let v3dDragging = false, v3dDragStart=null, v3dStartYawPitch=null;
+function setup3DInteraction() {
+  const canvas = document.getElementById('v3dCanvas');
+  canvas.addEventListener('mousedown', (e)=>{
+    v3dDragging = true; v3dDragStart = {x:e.clientX, y:e.clientY}; v3dStartYawPitch = {yaw:State.v3d.yaw, pitch:State.v3d.pitch};
+    canvas.style.cursor='grabbing';
+  });
+  window.addEventListener('mousemove', (e)=>{
+    if (!v3dDragging) return;
+    const dx = e.clientX-v3dDragStart.x, dy = e.clientY-v3dDragStart.y;
+    State.v3d.yaw = v3dStartYawPitch.yaw + dx*0.008;
+    State.v3d.pitch = Math.max(0.15, Math.min(1.5, v3dStartYawPitch.pitch - dy*0.008));
+    syncTiltSlider();
+    render3D();
+  });
+  window.addEventListener('mouseup', ()=>{ v3dDragging=false; canvas.style.cursor='grab'; });
+  canvas.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    State.v3d.scale *= (e.deltaY<0 ? 1.12 : 1/1.12);
+    render3D();
+  }, {passive:false});
+
+  let pinchStart=null;
+  canvas.addEventListener('touchstart', (e)=>{
+    e.preventDefault();
+    if (e.touches.length===1) {
+      v3dDragging=true; v3dDragStart={x:e.touches[0].clientX,y:e.touches[0].clientY}; v3dStartYawPitch={yaw:State.v3d.yaw,pitch:State.v3d.pitch};
+    } else if (e.touches.length===2) {
+      pinchStart = { dist: Math.hypot(e.touches[1].clientX-e.touches[0].clientX, e.touches[1].clientY-e.touches[0].clientY), scale: State.v3d.scale };
+    }
+  }, {passive:false});
+  canvas.addEventListener('touchmove', (e)=>{
+    e.preventDefault();
+    if (e.touches.length===1 && v3dDragging) {
+      const dx = e.touches[0].clientX-v3dDragStart.x, dy = e.touches[0].clientY-v3dDragStart.y;
+      State.v3d.yaw = v3dStartYawPitch.yaw + dx*0.008;
+      State.v3d.pitch = Math.max(0.15, Math.min(1.5, v3dStartYawPitch.pitch - dy*0.008));
+      syncTiltSlider();
+      render3D();
+    } else if (e.touches.length===2 && pinchStart) {
+      const dist = Math.hypot(e.touches[1].clientX-e.touches[0].clientX, e.touches[1].clientY-e.touches[0].clientY);
+      State.v3d.scale = pinchStart.scale * (dist/pinchStart.dist);
+      render3D();
+    }
+  }, {passive:false});
+  canvas.addEventListener('touchend', (e)=>{ if (e.touches.length===0){ v3dDragging=false; pinchStart=null; } });
+  window.addEventListener('resize', ()=>{ if (document.getElementById('view3DModal').classList.contains('open')) render3D(); });
+}
+
+function open3DView() {
+  const areaInfo = get3DAreaBBoxAndMask();
+  if (!areaInfo) { toast('Load a DEM first (Step 1).', true); return; }
+  openOverlay('view3DModal');
+  if (!State.v3d) State.v3d = { yaw:-0.55, pitch:0.95, scale:3.2, exaggeration:10 };
+  document.getElementById('v3dExaggeration').value = State.v3d.exaggeration;
+  document.getElementById('v3dExagLabel').textContent = State.v3d.exaggeration+'×';
+  syncTiltSlider();
+  if (!State._v3dInteractionSetup) { setup3DInteraction(); State._v3dInteractionSetup = true; }
+  rebuild3DTerrain();
+}
+function syncTiltSlider() {
+  const deg = Math.round(State.v3d.pitch * 180/Math.PI);
+  document.getElementById('v3dTilt').value = deg;
+  document.getElementById('v3dTiltLabel').textContent = deg+'°';
+}
+function close3DView() { closeOverlay('view3DModal'); }
+function reset3DView() { State.v3d.yaw=-0.55; State.v3d.pitch=0.95; State.v3d.scale=3.2; syncTiltSlider(); render3D(); }
+function setV3DPreset(name) {
+  if (name === 'top') { State.v3d.yaw = 0; State.v3d.pitch = 85*Math.PI/180; }
+  else if (name === 'perspective') { State.v3d.yaw = -0.55; State.v3d.pitch = 54*Math.PI/180; }
+  syncTiltSlider();
+  render3D();
+}
+function onV3DExaggerationChange(val) {
+  State.v3d.exaggeration = parseInt(val,10);
+  document.getElementById('v3dExagLabel').textContent = val+'×';
+  rebuild3DTerrain();
+}
+function onV3DTiltChange(val) {
+  const deg = parseInt(val,10);
+  State.v3d.pitch = deg * Math.PI/180;
+  document.getElementById('v3dTiltLabel').textContent = deg+'°';
+  render3D();
+}
+function export3DPNG() {
+  const canvas = document.getElementById('v3dCanvas');
+  canvas.toBlob(blob=>{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=projectName()+'_3dview.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  });
+}
+
+/* ============================= CHAINAGE GENERATION ============================= */
+function generateChainages(vertices, spacing) {
+  if (vertices.length < 2) return [];
+  const cum = [0];
+  for (let i=1;i<vertices.length;i++) cum.push(cum[i-1] + haversine(vertices[i-1].lon, vertices[i-1].lat, vertices[i].lon, vertices[i].lat));
+  const total = cum[cum.length-1];
+  const points = [];
+  let segIdx = 0;
+  for (let d=0; d<=total+1e-9; d+=spacing) {
+    const dist = Math.min(d, total);
+    while (segIdx < cum.length-2 && dist > cum[segIdx+1]) segIdx++;
+    const segStart=cum[segIdx], segEnd=cum[segIdx+1];
+    const t = segEnd>segStart ? (dist-segStart)/(segEnd-segStart) : 0;
+    const v0=vertices[segIdx], v1=vertices[segIdx+1];
+    const lon = v0.lon + t*(v1.lon-v0.lon);
+    const lat = v0.lat + t*(v1.lat-v0.lat);
+    points.push({chainage:dist, lon, lat});
+    if (dist>=total) break;
+  }
+  if (points.length===0 || Math.abs(points[points.length-1].chainage-total)>1e-6) {
+    points.push({chainage:total, lon:vertices[vertices.length-1].lon, lat:vertices[vertices.length-1].lat});
+  }
+  return points;
+}
+
+function recomputeChainageElevations() {
+  const pts = State.chainages;
+  for (let i=0;i<pts.length;i++){
+    pts[i].rl = getElevation(pts[i].lon, pts[i].lat);
+  }
+  for (let i=0;i<pts.length;i++){
+    if (i===0) { pts[i].gradient=null; pts[i].dist=0; continue; }
+    const d = pts[i].chainage - pts[i-1].chainage;
+    pts[i].dist = d;
+    if (pts[i].rl==null || pts[i-1].rl==null || d<=0) pts[i].gradient=null;
+    else pts[i].gradient = ((pts[i].rl - pts[i-1].rl)/d)*100;
+  }
+}
+
+/* ============================= ELEVATION SAMPLING ============================= */
+function getElevation(lon, lat) {
+  if (!State.dem) return null;
+  if (State.demMode === 'idw') return idwElevationAt(State.idwPoints, lon, lat);
+  const grid = State.dem;
+  const {width,height,minLon,maxLat,dLon,dLat,data,nodata} = grid;
+  const cf = (lon - minLon) / dLon;
+  const rf = (maxLat - lat) / dLat;
+  if (cf < 0 || rf < 0 || cf > width-1 || rf > height-1) return null;
+  const c0 = Math.floor(cf), r0 = Math.floor(rf);
+  const c1 = Math.min(c0+1, width-1), r1 = Math.min(r0+1, height-1);
+  const fx = cf - c0, fy = rf - r0;
+  const v00 = data[r0*width+c0], v10 = data[r0*width+c1];
+  const v01 = data[r1*width+c0], v11 = data[r1*width+c1];
+  const vals = [v00,v10,v01,v11];
+  if (vals.some(v => (nodata!=null && v === nodata) || v==null || Number.isNaN(v))) {
+    const rr = Math.min(height-1,Math.round(rf)), cc = Math.min(width-1,Math.round(cf));
+    const v = data[rr*width+cc];
+    return (nodata!=null && v===nodata) ? null : v;
+  }
+  const top = v00*(1-fx) + v10*fx;
+  const bot = v01*(1-fx) + v11*fx;
+  return top*(1-fy) + bot*fy;
+}
+
+/* ============================= MAP TILES (optional, needs internet) ============================= */
+// tile.openstreetmap.org's CDN often returns 403 for requests with no/invalid Referer header — which is
+// exactly what happens when this file is opened locally (file://) or from behind some network setups.
+// We try more embedding-tolerant providers first and only fall back to raw OSM tiles as a last resort.
+const PROVIDER_SETS = {
+  street: [
+    // CARTO's raster tiles now require a free API key — without one they return a valid but
+    // watermarked "API key required" image (not an error), so they'd never trigger fallback. Skipped entirely.
+    { name:'Esri',
+      url:(z,x,y)=> `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`,
+      attribution:'© Esri, HERE, Garmin, © OpenStreetMap contributors' },
+    { name:'OSM',
+      url:(z,x,y)=> `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+      attribution:'© OpenStreetMap contributors' },
+  ],
+  satellite: [
+    { name:'Esri-Imagery',
+      url:(z,x,y)=> `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,
+      attribution:'© Esri, Maxar, Earthstar Geographics' },
+  ],
+};
+// Optional transparent place-name/road overlay drawn on top of satellite imagery for readability.
+const SATELLITE_LABEL_PROVIDER = {
+  name:'Esri-Labels',
+  url:(z,x,y)=> `https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/${z}/${y}/${x}`,
+};
+
+function lon2tileX(lon, z) { return Math.floor((lon+180)/360 * Math.pow(2,z)); }
+function lat2tileY(lat, z) { const r = lat*Math.PI/180; return Math.floor((1 - Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2 * Math.pow(2,z)); }
+function tile2lon(x, z) { return x/Math.pow(2,z)*360 - 180; }
+function tile2lat(y, z) { const n = Math.PI - 2*Math.PI*y/Math.pow(2,z); return 180/Math.PI * Math.atan(0.5*(Math.exp(n)-Math.exp(-n))); }
+
+function getVisibleGeoBounds(w, h) {
+  // Current on-screen viewport in geo coordinates, accounting for pan/zoom (State.view), not the static DEM bounds.
+  const tl = screenToGeo(0, 0);
+  const br = screenToGeo(w, h);
+  return {
+    minLon: Math.min(tl.lon, br.lon), maxLon: Math.max(tl.lon, br.lon),
+    minLat: Math.min(tl.lat, br.lat), maxLat: Math.max(tl.lat, br.lat),
+  };
+}
+
+function pickZoomForBounds(b, canvasWidthPx) {
+  const spanLon = (b.maxLon-b.minLon) || 0.0001;
+  const tilesAcross = canvasWidthPx/256;
+  let z = Math.floor(Math.log2(360/spanLon * tilesAcross));
+  return Math.max(2, Math.min(19, z));
+}
+
+function ensureTile(cacheKeyPrefix, providerList, z, x, y) {
+  const key = `${cacheKeyPrefix}_${z}_${x}_${y}`;
+  let entry = State.tileCache.get(key);
+  if (entry) return entry;
+  entry = { img:null, loaded:false, failed:false, providerIndex:0 };
+  State.tileCache.set(key, entry);
+  tryLoadTile(entry, providerList, z, x, y);
+  return entry;
+}
+
+function tryLoadTile(entry, providerList, z, x, y, useCors=true) {
+  if (entry.providerIndex >= providerList.length) { entry.failed = true; entry.loaded = false; return; }
+  const provider = providerList[entry.providerIndex];
+  const img = new Image();
+  // Ask for the tile WITH CORS: an image loaded this way does not taint the map canvas, so Map PNG / print /
+  // contour-map export keep working. If the server refuses, we retry the same provider without CORS (the tile
+  // is still displayed; exports then fall back to a tile-free image).
+  if (useCors) img.crossOrigin = 'anonymous';
+  entry.img = img;
+  entry.provider = provider;
+  entry.cors = useCors;
+  img.onload = () => { entry.loaded = true; redraw(); updateTileAttribution(); };
+  img.onerror = () => {
+    if (useCors) { tryLoadTile(entry, providerList, z, x, y, false); return; }
+    entry.providerIndex++;
+    if (entry.providerIndex < providerList.length) tryLoadTile(entry, providerList, z, x, y, true);
+    else { entry.failed = true; entry.loaded = false; }
+  };
+  img.src = provider.url(z,x,y);
+}
+
+function updateTileAttribution() {
+  // Show attribution for whichever provider most recently succeeded, scoped to the CURRENT basemap mode only —
+  // otherwise a stale loaded entry from a previously-selected mode could win the "latest" scan.
+  const prefix = State.basemapMode + '_';
+  let latest = null;
+  for (const [key, entry] of State.tileCache.entries()) {
+    if (key.startsWith(prefix) && entry.loaded && entry.provider) latest = entry.provider;
+  }
+  if (latest) document.getElementById('osmAttribution').textContent = latest.attribution;
+}
+
+function drawTileLayer(ctx, w, h) {
+  const mode = State.basemapMode;
+  if (mode === 'off') return;
+  const providerList = PROVIDER_SETS[mode];
+  const b = getVisibleGeoBounds(w, h); // use what's actually on screen right now, not the static DEM extent
+  const z = pickZoomForBounds(b, w);
+  const n = Math.pow(2,z);
+  const xMin = Math.max(0, lon2tileX(b.minLon, z) - 1);
+  const xMax = Math.min(n-1, lon2tileX(b.maxLon, z) + 1);
+  const yMin = Math.max(0, lat2tileY(b.maxLat, z) - 1);
+  const yMax = Math.min(n-1, lat2tileY(b.minLat, z) + 1);
+  for (let ty=yMin; ty<=yMax; ty++){
+    for (let tx=xMin; tx<=xMax; tx++){
+      const entry = ensureTile(mode, providerList, z, tx, ty);
+      const lonA = tile2lon(tx,z), lonB = tile2lon(tx+1,z);
+      const latA = tile2lat(ty,z), latB = tile2lat(ty+1,z);
+      const p1 = geoToScreen(lonA, latA), p2 = geoToScreen(lonB, latB);
+      if (entry.loaded) {
+        if (!entry.cors) State._taintPossible = true;
+        ctx.drawImage(entry.img, p1.x, p1.y, p2.x-p1.x, p2.y-p1.y);
+      } else if (!entry.failed) {
+        ctx.fillStyle = mode==='satellite' ? '#2a3138' : '#e4e9ee';
+        ctx.fillRect(p1.x, p1.y, p2.x-p1.x, p2.y-p1.y);
+      }
+      // Place-name/boundary overlay on top of satellite imagery for readability
+      if (mode === 'satellite') {
+        const labelEntry = ensureTile('satlabels', [SATELLITE_LABEL_PROVIDER], z, tx, ty);
+        if (labelEntry.loaded) {
+          if (!labelEntry.cors) State._taintPossible = true;
+          ctx.drawImage(labelEntry.img, p1.x, p1.y, p2.x-p1.x, p2.y-p1.y);
+        }
+      }
+    }
+  }
+}
+
+function setBasemapMode(mode) {
+  State.basemapMode = mode;
+  const attrEl = document.getElementById('osmAttribution');
+  attrEl.style.display = (mode!=='off') ? 'block' : 'none';
+  if (mode !== 'off') attrEl.textContent = PROVIDER_SETS[mode][0].attribution; // optimistic default until a tile confirms which provider actually served it
+  redraw();
+}
+
+async function prefetchTilesForBounds(bounds, canvasWidthPx, timeoutMs=8000) {
+  const mode = State.basemapMode === 'off' ? 'street' : State.basemapMode; // report always prefetches a real basemap
+  const providerList = PROVIDER_SETS[mode];
+  const z = pickZoomForBounds(bounds, canvasWidthPx);
+  const n = Math.pow(2,z);
+  const xMin = Math.max(0, lon2tileX(bounds.minLon, z) - 1);
+  const xMax = Math.min(n-1, lon2tileX(bounds.maxLon, z) + 1);
+  const yMin = Math.max(0, lat2tileY(bounds.maxLat, z) - 1);
+  const yMax = Math.min(n-1, lat2tileY(bounds.minLat, z) + 1);
+  const waits = [];
+  for (let ty=yMin; ty<=yMax; ty++){
+    for (let tx=xMin; tx<=xMax; tx++){
+      const entry = ensureTile(mode, providerList, z, tx, ty);
+      if (!entry.loaded && !entry.failed) {
+        waits.push(new Promise(resolve => {
+          const check = () => (entry.loaded || entry.failed) ? resolve() : setTimeout(check, 100);
+          check();
+        }));
+      }
+    }
+  }
+  await Promise.race([ Promise.all(waits), sleep(timeoutMs) ]);
+}
+
+/* ============================= ONLINE ELEVATION (Open-Meteo / Copernicus GLO-90, needs internet) ============================= */
+function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+async function fetchElevationChunkWithRetry(url, maxRetries=5) {
+  let attempt = 0;
+  while (true) {
+    const resp = await fetch(url);
+    if (resp.ok) return resp.json();
+    if (resp.status === 429 && attempt < maxRetries) {
+      const retryAfterHeader = parseFloat(resp.headers.get('retry-after'));
+      const waitMs = !Number.isNaN(retryAfterHeader) ? retryAfterHeader*1000 : Math.min(30000, 1500 * Math.pow(2, attempt));
+      attempt++;
+      toast('Elevation service is rate-limiting requests — retrying in '+Math.round(waitMs/1000)+'s (attempt '+attempt+'/'+maxRetries+')…');
+      await sleep(waitMs);
+      continue;
+    }
+    throw new Error('Elevation API request failed (HTTP '+resp.status+').' + (resp.status===429 ? ' Rate limit exceeded even after retries — try again shortly, or lower the grid density.' : ' Check your internet connection.'));
+  }
+}
+
+async function openMeteoElevationBatch(coords) {
+  // coords: [{lon,lat}, ...] -> returns array of elevations (meters), same order. Chunks of 100 per Open-Meteo limit,
+  // with a small pause between chunks and automatic retry/backoff on HTTP 429 (rate limited).
+  const results = new Array(coords.length);
+  const chunkSize = 100;
+  const chunks = [];
+  for (let i=0; i<coords.length; i+=chunkSize) chunks.push(coords.slice(i, i+chunkSize));
+  for (let ci=0; ci<chunks.length; ci++) {
+    const chunk = chunks[ci];
+    if (chunks.length > 1) toast('Fetching elevation batch '+(ci+1)+'/'+chunks.length+'…');
+    const lats = chunk.map(c=>c.lat.toFixed(6)).join(',');
+    const lons = chunk.map(c=>c.lon.toFixed(6)).join(',');
+    const url = `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lons}`;
+    const data = await fetchElevationChunkWithRetry(url);
+    if (!data.elevation) throw new Error('Elevation API returned an unexpected response.');
+    for (let j=0;j<chunk.length;j++) results[chunkSize*ci+j] = data.elevation[j];
+    if (ci < chunks.length-1) await sleep(1200); // stay well under per-minute rate limits between chunks
+  }
+  return results;
+}
+
+async function fetchDemFromInternet() {
+  let bounds;
+  if (State.areaClosed && State.areaPoints.length>=3) {
+    const lons = State.areaPoints.map(p=>p.lon), lats = State.areaPoints.map(p=>p.lat);
+    bounds = { minLon:Math.min(...lons), maxLon:Math.max(...lons), minLat:Math.min(...lats), maxLat:Math.max(...lats) };
+  } else if (State.bounds) {
+    const cs = canvasSize();       // no area drawn: fetch exactly what is visible on screen right now
+    bounds = getVisibleGeoBounds(cs.w, cs.h);
+  } else { toast('Select an area first, or pan/zoom the map to the area you want.', true); return; }
+
+  const gridN = parseInt(document.getElementById('onlineDemRes').value, 10) || 30;
+  const width = gridN, height = gridN;
+  const dLon = (bounds.maxLon-bounds.minLon)/(width-1);
+  const dLat = (bounds.maxLat-bounds.minLat)/(height-1);
+  const coords = [];
+  for (let r=0;r<height;r++){
+    const lat = bounds.maxLat - r*dLat;
+    for (let c=0;c<width;c++){
+      const lon = bounds.minLon + c*dLon;
+      coords.push({lon,lat});
+    }
+  }
+  toast('Fetching '+coords.length+' elevation points from the internet…');
+  try {
+    const elevations = await openMeteoElevationBatch(coords);
+    const data = new Float64Array(elevations);
+    const grid = { width, height, minLon:bounds.minLon, maxLat:bounds.maxLat, dLon, dLat, data, nodata:null };
+    setDemFromGrid(grid, 'Open-Meteo Elevation API (Copernicus DEM GLO-90, ~90m)');
+  } catch(err) {
+    toast('Online elevation fetch failed: '+err.message, true);
+  }
+}
+
+async function refineChainageElevationsOnline() {
+  if (!State.chainages.length) { toast('Generate chainages first.', true); return; }
+  toast('Fetching precise elevation for '+State.chainages.length+' chainage points…');
+  try {
+    const elevations = await openMeteoElevationBatch(State.chainages.map(p=>({lon:p.lon, lat:p.lat})));
+    State.chainages.forEach((p,i)=> p.rl = elevations[i]);
+    for (let i=0;i<State.chainages.length;i++){
+      if (i===0) { State.chainages[i].gradient=null; continue; }
+      const d = State.chainages[i].dist;
+      const rl0 = State.chainages[i-1].rl, rl1 = State.chainages[i].rl;
+      State.chainages[i].gradient = (d>0 && rl0!=null && rl1!=null) ? ((rl1-rl0)/d)*100 : null;
+    }
+    renderProfilePanel(); redraw();
+    toast('Chainage elevations refined using online data (Copernicus DEM GLO-90).');
+  } catch(err) {
+    toast('Online refinement failed: '+err.message, true);
+  }
+}
+
+/* ============================= CONTOUR / CHAINAGE TRIGGERS ============================= */
+function doGenerateContours() {
+  if (!State.dem) { toast('Load a DEM first.', true); return; }
+  const interval = parseFloat(document.getElementById('contourInterval').value) || 1;
+  State.contourInterval = interval;
+  const { segments, minV, maxV } = computeContours(State.dem, interval);
+  State.contourSegments = segments;
+  document.getElementById('contourInfo').innerHTML = `<span>Interval:</span><b>${interval} m</b><span>Levels:</span><b>${Math.max(0,Math.floor((maxV-minV)/interval))}</b><span>Segments:</span><b>${segments.length}</b>`;
+  redraw();
+  toast('Generated '+segments.length+' contour segments.');
+}
+
+function doGenerateChainages() {
+  if (State.roadPoints.length<2) { toast('Draw a road/drain/path with at least 2 points first.', true); return; }
+  if (!State.dem) { toast('Load a DEM first — chainage needs elevation data.', true); return; }
+  const spacing = parseFloat(document.getElementById('chainageSpacing').value) || 20;
+  State.chainageSpacing = spacing;
+  State.chainages = generateChainages(State.roadPoints, spacing);
+  recomputeChainageElevations();
+  const withRL = State.chainages.filter(p=>p.rl!=null).length;
+  document.getElementById('chainageInfo').innerHTML = `<span>Points:</span><b>${State.chainages.length}</b><span>With RL:</span><b>${withRL}/${State.chainages.length}</b><span>Total length:</span><b>${State.chainages[State.chainages.length-1].chainage.toFixed(1)} m</b>`;
+  redraw();
+  renderProfilePanel();
+  toast('Generated '+State.chainages.length+' chainage points.');
+  closeSidebarOnMobile();
+  openOverlay('profileView');
+}
+function openProfileView() {
+  if (!State.chainages.length) { toast('Draw a path (Step 4) and generate chainages (Step 5) first.', true); return; }
+  renderProfilePanel();
+  openOverlay('profileView');
+}
+
+/* ============================= PROFILE CHART (hand-rolled SVG, no deps) ============================= */
+function renderProfilePanel() {
+  try { const el = document.getElementById('profileStats'); if (el) el.innerHTML = profileStatsHTML(); } catch(e){ console.error(e); }
+  try { renderProfileChart(); } catch(e){ console.error(e); }
+  try { renderChainageTable(); } catch(e){ console.error(e); }
+}
+
+function renderProfileChart() {
+  const holder = document.getElementById('profileChartHolder');
+  const pts = State.chainages.filter(p=>p.rl!=null);
+  if (pts.length<2) { State.profileChartMeta = null; holder.innerHTML = '<div style="padding:12px;color:#6b7a89;font-size:12px;">Not enough elevation data to draw a profile.</div>'; return; }
+  const W=900,H=260, padL=55,padR=20,padT=18,padB=34;
+  const chainages = pts.map(p=>p.chainage);
+  const rls = pts.map(p=>p.rl);
+  const minC=Math.min(...chainages), maxC=Math.max(...chainages);
+  const minR=Math.min(...rls), maxR=Math.max(...rls);
+  const rPad = (maxR-minR)*0.1 || 1;
+  const rMin=minR-rPad, rMax=maxR+rPad;
+  const xOf = c => padL + (W-padL-padR)*( (c-minC)/((maxC-minC)||1) );
+  const yOf = r => padT + (H-padT-padB)*(1-((r-rMin)/((rMax-rMin)||1)));
+
+  let grid='', axisLabels='';
+  const ySteps=5;
+  for (let i=0;i<=ySteps;i++){
+    const rv = rMin + (rMax-rMin)*i/ySteps;
+    const y = yOf(rv);
+    grid += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e6ecf1" stroke-width="1"/>`;
+    axisLabels += `<text x="${padL-6}" y="${y+3}" font-size="9.5" fill="#42505e" text-anchor="end">${rv.toFixed(1)}</text>`;
+  }
+  let xLabels='';
+  const xTickEvery = Math.max(1, Math.round(pts.length/8));
+  pts.forEach((p,i)=>{
+    if (i%xTickEvery===0 || i===pts.length-1) {
+      const x = xOf(p.chainage);
+      xLabels += `<text x="${x}" y="${H-padB+14}" font-size="9.5" fill="#42505e" text-anchor="middle">${p.chainage.toFixed(0)}</text>`;
+      grid += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${H-padB}" stroke="#f0f3f6" stroke-width="1"/>`;
+    }
+  });
+
+  let pathD = pts.map((p,i)=> (i===0?'M':'L') + xOf(p.chainage).toFixed(1) + ' ' + yOf(p.rl).toFixed(1)).join(' ');
+  let areaD = pathD + ` L ${xOf(pts[pts.length-1].chainage).toFixed(1)} ${yOf(rMin).toFixed(1)} L ${xOf(pts[0].chainage).toFixed(1)} ${yOf(rMin).toFixed(1)} Z`;
+
+  let dots = pts.map(p=>`<circle cx="${xOf(p.chainage).toFixed(1)}" cy="${yOf(p.rl).toFixed(1)}" r="2.4" fill="#0f5c96"/>`).join('');
+  let callouts = pts.map((p,i)=>{
+    if (i%xTickEvery!==0 && i!==pts.length-1) return '';
+    return `<text x="${xOf(p.chainage).toFixed(1)}" y="${(yOf(p.rl)-7).toFixed(1)}" font-size="9" fill="#0b3d66" text-anchor="middle">${p.rl.toFixed(2)}</text>`;
+  }).join('');
+
+  const svg = `
+  <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>
+    ${grid}
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="#c4cfd9"/>
+    <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#c4cfd9"/>
+    <path d="${areaD}" fill="rgba(43,143,224,0.12)" stroke="none"/>
+    <path d="${pathD}" fill="none" stroke="#0f5c96" stroke-width="2"/>
+    ${dots}
+    ${callouts}
+    ${axisLabels}
+    ${xLabels}
+    <text x="${(W)/2}" y="${H-4}" font-size="10.5" fill="#1b2530" text-anchor="middle">Chainage (m)</text>
+    <text x="14" y="${H/2}" font-size="10.5" fill="#1b2530" text-anchor="middle" transform="rotate(-90 14 ${H/2})">RL (m)</text>
+    <g class="pf-cursor" visibility="hidden"><line id="pfCursorLine" x1="0" y1="${padT}" x2="0" y2="${H-padB}" stroke="#c0392b" stroke-width="1" stroke-dasharray="4 3"/><circle id="pfCursorDot" cx="0" cy="0" r="5" fill="#c0392b" stroke="#ffffff" stroke-width="1.5"/></g>
+  </svg>`;
+  holder.innerHTML = svg;
+  State.profileChartMeta = { W, H, padL, padR, padT, padB, minC, maxC, pts, xOf, yOf };
+  attachProfileChartInteraction();
+}
+
+function renderChainageTable() {
+  const table = document.getElementById('chainageTable');
+  table.innerHTML = chainageTableHTML();
+}
+
+/* ---- profile helpers: table, key figures, chart read-out, PNG, print ---- */
+function slopeText(g) {
+  if (g==null) return '—';
+  if (Math.abs(g) < 0.005) return 'level';
+  return '1 in ' + Math.abs(100/g).toFixed(0) + (g>0 ? ' ↑ rising' : ' ↓ falling');
+}
+function gradChipClass(g) { if (g==null) return 'n'; const a = Math.abs(g); return a<2 ? 'g' : a<5 ? 'a' : 'r'; }
+
+function chainageTableHTML() {
+  let html = '<thead><tr><th>Chainage (m)</th><th>Lon</th><th>Lat</th><th>RL (m)</th><th>Rise/Fall (m)</th><th>Gradient (%)</th><th>Slope</th></tr></thead><tbody>';
+  State.chainages.forEach((p,i)=>{
+    const rf = (i===0 || p.rl==null || State.chainages[i-1].rl==null) ? '—' : (p.rl-State.chainages[i-1].rl).toFixed(3);
+    const g = p.gradient;
+    html += `<tr><td>${p.chainage.toFixed(1)}</td><td>${p.lon.toFixed(6)}</td><td>${p.lat.toFixed(6)}</td><td>${p.rl!=null?p.rl.toFixed(2):'—'}</td><td>${rf}</td><td><span class="chip ${gradChipClass(g)}">${g!=null?(g>0?'+':'')+g.toFixed(2):'—'}</span></td><td>${slopeText(g)}</td></tr>`;
+  });
+  return html + '</tbody>';
+}
+
+function computeProfileStats() {
+  const pts = State.chainages.filter(p => p.rl != null);
+  if (pts.length < 2) return null;
+  let minP = pts[0], maxP = pts[0], maxGrad = null;
+  pts.forEach(p => { if (p.rl < minP.rl) minP = p; if (p.rl > maxP.rl) maxP = p; });
+  State.chainages.forEach(p => { if (p.gradient != null && (maxGrad == null || Math.abs(p.gradient) > Math.abs(maxGrad.gradient))) maxGrad = p; });
+  const first = pts[0], last = pts[pts.length-1];
+  const length = State.chainages[State.chainages.length-1].chainage;
+  const net = last.rl - first.rl;
+  return { length, startRL:first.rl, endRL:last.rl, net, avgGrad: length>0 ? net/length*100 : 0, minP, maxP, maxGrad };
+}
+function profileStatsHTML() {
+  const st = computeProfileStats();
+  if (!st) return '';
+  const sgn = v => (v>=0 ? '+' : '') + v.toFixed(2);
+  const card = (k, v, sub) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`;
+  return card('Total length', st.length.toFixed(1)+' m', State.chainages.length+' chainages @ '+State.chainageSpacing+' m')
+       + card('Start RL', st.startRL.toFixed(2)+' m')
+       + card('End RL', st.endRL.toFixed(2)+' m')
+       + card('Net rise / fall', sgn(st.net)+' m', 'average gradient '+sgn(st.avgGrad)+' %')
+       + card('Lowest RL', st.minP.rl.toFixed(2)+' m', 'at CH '+st.minP.chainage.toFixed(0)+' m')
+       + card('Highest RL', st.maxP.rl.toFixed(2)+' m', 'at CH '+st.maxP.chainage.toFixed(0)+' m')
+       + (st.maxGrad ? card('Steepest section', sgn(st.maxGrad.gradient)+' %', 'ending at CH '+st.maxGrad.chainage.toFixed(0)+' m') : '');
+}
+
+function attachProfileChartInteraction() {
+  const holder = document.getElementById('profileChartHolder');
+  const svg = (holder && holder.querySelector) ? holder.querySelector('svg') : null;
+  const m = State.profileChartMeta;
+  if (!svg || !m) return;
+  svg.style.touchAction = 'pan-y';        // horizontal finger movement scrubs the chart, vertical still scrolls the page
+  const g = svg.querySelector('.pf-cursor'), line = svg.querySelector('#pfCursorLine'), dot = svg.querySelector('#pfCursorDot');
+  const readout = document.getElementById('profileReadout');
+  const show = (clientX) => {
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width) return;
+    const x = (clientX - rect.left) / rect.width * m.W;
+    const c = m.minC + (x - m.padL) / ((m.W - m.padL - m.padR) || 1) * (m.maxC - m.minC);
+    let best = m.pts[0], bd = Infinity;
+    for (const p of m.pts) { const d = Math.abs(p.chainage - c); if (d < bd) { bd = d; best = p; } }
+    const px = m.xOf(best.chainage), py = m.yOf(best.rl);
+    line.setAttribute('x1', px); line.setAttribute('x2', px);
+    dot.setAttribute('cx', px); dot.setAttribute('cy', py);
+    g.setAttribute('visibility', 'visible');
+    const gr = best.gradient;
+    if (readout) readout.innerHTML = `<b>CH ${best.chainage.toFixed(1)} m</b> &nbsp;·&nbsp; RL <b>${best.rl.toFixed(2)} m</b> &nbsp;·&nbsp; Gradient <span class="chip ${gradChipClass(gr)}">${gr!=null?(gr>0?'+':'')+gr.toFixed(2)+' %':'—'}</span> &nbsp;·&nbsp; ${slopeText(gr)}`;
+  };
+  svg.addEventListener('pointermove', e => show(e.clientX));
+  svg.addEventListener('pointerdown', e => show(e.clientX));
+}
+
+function cleanProfileSVGHTML() {           // chart markup without the interactive cursor
+  const holder = document.getElementById('profileChartHolder');
+  if (!holder) return '';
+  if (holder.cloneNode) {
+    const c = holder.cloneNode(true);
+    if (c.querySelectorAll) c.querySelectorAll('.pf-cursor').forEach(n => n.remove());
+    return c.innerHTML;
+  }
+  return holder.innerHTML;
+}
+
+function exportProfilePNG() {
+  const svg = document.querySelector('#profileChartHolder svg');
+  const m = State.profileChartMeta;
+  if (!svg || !m) { toast('Generate chainages first — there is no profile to save yet.', true); return; }
+  const clone = svg.cloneNode(true);
+  clone.querySelectorAll('.pf-cursor').forEach(n => n.remove());
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clone.setAttribute('width', m.W*2); clone.setAttribute('height', m.H*2);
+  const xml = new XMLSerializer().serializeToString(clone);
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const c = document.createElement('canvas'); c.width = m.W*2; c.height = m.H*2;
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = projectName()+'_longitudinal_profile.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      toast('Profile chart saved as PNG.');
+    } catch(err) { toast('Could not create the PNG on this device — use Print / PDF instead.', true); }
+  };
+  img.onerror = () => toast('Could not create the PNG on this device — use Print / PDF instead.', true);
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
+}
+
+function printProfileReport() {
+  if (!State.chainages.length) { toast('Draw a path and generate chainages first (Steps 4–5).', true); return; }
+  try { renderProfileChart(); } catch(e) { /* keep whatever is shown */ }
+  const proj = document.getElementById('projectName').value || 'Untitled Survey';
+  const now = new Date().toLocaleString();
+  const resText = State.demResM ? `${State.demResM.x.toFixed(1)} × ${State.demResM.y.toFixed(1)} m/pixel` : '—';
+  const report = document.getElementById('reportSection');
+  report.innerHTML = `
+    <h1>${proj} — Longitudinal Profile</h1>
+    <div class="meta">
+      Generated ${now} &middot; Road &amp; Drain Survey Planner<br>
+      DEM Source: <b>${State.demSourceName||'—'}</b> &middot; Resolution: <b>${resText}</b> &middot; Chainage spacing: <b>${State.chainageSpacing} m</b>
+    </div>
+    <div class="stat-grid">${profileStatsHTML()}</div>
+    <div class="chartcard">${cleanProfileSVGHTML()}</div>
+    <h2 style="font-size:13px;color:#0b3d66;margin-top:14px;">Chainage Table</h2>
+    <table class="data" style="width:100%;">${chainageTableHTML()}</table>
+  `;
+  window.print();       // synchronous, no canvas involved: nothing here can taint or block the export
+}
+
+/* ---- export sheet ---- */
+function openExportSheet() { openOverlay('exportSheet'); }
+function exportAction(name) {
+  closeOverlay('exportSheet');
+  const actions = { printProfile:printProfileReport, printReport:openPrintReport, contourMap:openContourMapReport,
+                    mapPNG:exportMapPNG, csv:exportCSV, geojson:exportGeoJSON, kml:exportKML };
+  const fn = actions[name];
+  if (fn) fn();
+}
+
+/* ============================= EXPORT ============================= */
+function projectName() { return (document.getElementById('projectName').value||'survey').trim().replace(/[^a-z0-9\-_]+/gi,'_') || 'survey'; }
+function downloadBlob(content, filename, type) {
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+
+function exportCSV() {
+  if (!State.chainages.length) { toast('Generate chainages first (Step 5).', true); return; }
+  let lines = [];
+  lines.push('Project,'+ (document.getElementById('projectName').value||''));
+  lines.push('DEM Source,'+ (State.demSourceName||''));
+  if (State.demResM) lines.push('DEM Resolution (m/px),'+State.demResM.x.toFixed(2)+' x '+State.demResM.y.toFixed(2));
+  lines.push('Chainage Spacing (m),'+State.chainageSpacing);
+  lines.push('');
+  lines.push('Chainage(m),Longitude,Latitude,RL(m),Rise_Fall(m),Gradient(%)');
+  State.chainages.forEach((p,i)=>{
+    const rf = (i===0 || p.rl==null || State.chainages[i-1].rl==null) ? '' : (p.rl-State.chainages[i-1].rl).toFixed(3);
+    lines.push([p.chainage.toFixed(1), p.lon.toFixed(6), p.lat.toFixed(6), p.rl!=null?p.rl.toFixed(2):'', rf, p.gradient!=null?p.gradient.toFixed(2):''].join(','));
+  });
+  downloadBlob(lines.join('\n'), projectName()+'_chainage.csv', 'text/csv');
+  toast('CSV exported.');
+}
+
+function ring(points) { return points.map(p=>[p.lon,p.lat]); }
+
+function exportGeoJSON() {
+  const features = [];
+  if (State.areaPoints.length>=3) {
+    const coords = ring(State.areaPoints);
+    coords.push(coords[0]);
+    features.push({ type:'Feature', properties:{name:'Selected Area'}, geometry:{type:'Polygon', coordinates:[coords]} });
+  }
+  if (State.roadPoints.length>=2) {
+    features.push({ type:'Feature', properties:{name:'Road/Drain/Path'}, geometry:{type:'LineString', coordinates: ring(State.roadPoints)} });
+  }
+  if (State.contourSegments.length && State.dem) {
+    const byLevel = {};
+    State.contourSegments.forEach(s=>{
+      const g1 = gridToGeo(State.dem, s.x1, s.y1), g2 = gridToGeo(State.dem, s.x2, s.y2);
+      (byLevel[s.level] = byLevel[s.level]||[]).push([[g1.lon,g1.lat],[g2.lon,g2.lat]]);
+    });
+    Object.entries(byLevel).forEach(([level, lines])=>{
+      features.push({ type:'Feature', properties:{level:parseFloat(level), name:'Contour '+level+'m'}, geometry:{type:'MultiLineString', coordinates:lines} });
+    });
+  }
+  if (State.chainages.length) {
+    State.chainages.forEach(p=>{
+      features.push({ type:'Feature', properties:{chainage:p.chainage, rl:p.rl, gradient:p.gradient}, geometry:{type:'Point', coordinates:[p.lon,p.lat]} });
+    });
+  }
+  const fc = { type:'FeatureCollection', properties:{project:document.getElementById('projectName').value||'', demSource:State.demSourceName||''}, features };
+  downloadBlob(JSON.stringify(fc,null,2), projectName()+'.geojson', 'application/geo+json');
+  toast('GeoJSON exported.');
+}
+
+function kmlCoordsLine(points) { return points.map(p=>`${p.lon},${p.lat},0`).join(' '); }
+function exportKML() {
+  let placemarks = '';
+  if (State.areaPoints.length>=3) {
+    const coords = kmlCoordsLine(State.areaPoints) + ' ' + `${State.areaPoints[0].lon},${State.areaPoints[0].lat},0`;
+    placemarks += `<Placemark><name>Selected Area</name><Polygon><outerBoundaryIs><LinearRing><coordinates>${coords}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`;
+  }
+  if (State.roadPoints.length>=2) {
+    placemarks += `<Placemark><name>Road/Drain/Path</name><LineString><coordinates>${kmlCoordsLine(State.roadPoints)}</coordinates></LineString></Placemark>`;
+  }
+  if (State.contourSegments.length && State.dem) {
+    const byLevel = {};
+    State.contourSegments.forEach(s=>{
+      const g1 = gridToGeo(State.dem, s.x1, s.y1), g2 = gridToGeo(State.dem, s.x2, s.y2);
+      (byLevel[s.level] = byLevel[s.level]||[]).push(`${g1.lon},${g1.lat},0 ${g2.lon},${g2.lat},0`);
+    });
+    Object.entries(byLevel).forEach(([level, lines])=>{
+      lines.forEach(coords=>{
+        placemarks += `<Placemark><name>Contour ${level}m</name><LineString><coordinates>${coords}</coordinates></LineString></Placemark>`;
+      });
+    });
+  }
+  State.chainages.forEach(p=>{
+    placemarks += `<Placemark><name>CH ${p.chainage.toFixed(0)}m</name><description>RL: ${p.rl!=null?p.rl.toFixed(2):'—'} m, Gradient: ${p.gradient!=null?p.gradient.toFixed(2):'—'}%</description><Point><coordinates>${p.lon},${p.lat},0</coordinates></Point></Placemark>`;
+  });
+  const kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${document.getElementById('projectName').value||'Survey'}</name>${placemarks}</Document></kml>`;
+  downloadBlob(kml, projectName()+'.kml', 'application/vnd.google-earth.kml+xml');
+  toast('KML exported.');
+}
+
+/* Canvas -> PNG data URL that survives a "tainted" canvas. If a basemap tile from a site without CORS was drawn,
+   the browser blocks pixel export (this is what silently broke Map PNG / Print / Contour map). In that case we
+   redraw without the basemap and export that instead (unless opts.noFallback, which returns null). */
+function safeCanvasDataURL(canvas, opts) {
+  opts = opts || {};
+  try { return canvas.toDataURL('image/png'); }
+  catch (err) {
+    if (opts.noFallback) return null;
+    const savedMode = State.basemapMode;
+    try {
+      State.basemapMode = 'off';
+      State._taintPossible = true;          // forces redraw() to reset the canvas bitmap
+      redraw();
+      const url = canvas.toDataURL('image/png');
+      toast('Basemap tiles were left out of the saved image (the tile provider does not allow exporting them).', true);
+      return url;
+    } catch (err2) {
+      toast('Could not create the map image on this device.', true);
+      return null;
+    } finally {
+      State.basemapMode = savedMode;
+      redraw();
+    }
+  }
+}
+
+function exportMapPNG() {
+  const url = safeCanvasDataURL(getCanvas());
+  if (!url) return;
+  const a = document.createElement('a'); a.href = url; a.download = projectName()+'_map.png';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  toast('Map image saved.');
+}
+
+function openPrintReport() {
+  const mapImg = safeCanvasDataURL(getCanvas());
+  const proj = document.getElementById('projectName').value || 'Untitled Survey';
+  const now = new Date().toLocaleString();
+  const hasProfile = State.chainages.length > 0;
+  if (hasProfile) { try { renderProfileChart(); } catch(e) { /* keep placeholder below */ } }
+  const profileHTML = (hasProfile ? cleanProfileSVGHTML() : '')
+    || '<div style="padding:12px;color:#6b7a89;font-size:12px;">No road/drain/path chainage generated yet — see Steps 4–5.</div>';
+  const resText = State.demResM ? `${State.demResM.x.toFixed(1)} × ${State.demResM.y.toFixed(1)} m/pixel` : '—';
+  const report = document.getElementById('reportSection');
+  report.innerHTML = `
+    <h1>${proj}</h1>
+    <div class="meta">
+      Generated ${now} &middot; Road &amp; Drain Survey Planner<br>
+      DEM Source: <b>${State.demSourceName||'—'}</b> &middot; Resolution: <b>${resText}</b> &middot; Elevation range: <b>${State.dem?State.demMinV.toFixed(1)+'–'+State.demMaxV.toFixed(1)+' m':'—'}</b><br>
+      Contour interval: <b>${State.contourInterval} m</b> &middot; Chainage spacing: <b>${State.chainageSpacing} m</b> &middot; Path length: <b>${hasProfile?State.chainages[State.chainages.length-1].chainage.toFixed(1)+' m':'—'}</b>
+    </div>
+    ${mapImg ? `<img class="mapshot" src="${mapImg}">` : ''}
+    <h2 style="font-size:13px;color:#0b3d66;">Longitudinal Profile</h2>
+    ${hasProfile ? `<div class="stat-grid">${profileStatsHTML()}</div>` : ''}
+    <div class="chartcard">${profileHTML}</div>
+    ${hasProfile ? `<h2 style="font-size:13px;color:#0b3d66;margin-top:14px;">Chainage Table</h2><table class="data" style="width:100%;">${chainageTableHTML()}</table>` : ''}
+  `;
+  // Called synchronously (no timer) so it stays tied to the tap that started it — some mobile browsers ignore print() otherwise.
+  window.print();
+}
+
+async function openContourMapReport() {
+  if (!State.dem) { toast('Load a DEM first (Step 1).', true); return; }
+  if (!State.contourSegments.length) {
+    doGenerateContours();
+    if (!State.contourSegments.length) { toast('No contours could be generated — check the DEM has valid elevation data.', true); return; }
+  }
+
+  const usingArea = State.areaClosed && State.areaPoints.length>=3;
+  let bbox;
+  if (usingArea) {
+    const lons = State.areaPoints.map(p=>p.lon), lats = State.areaPoints.map(p=>p.lat);
+    bbox = { minLon:Math.min(...lons), maxLon:Math.max(...lons), minLat:Math.min(...lats), maxLat:Math.max(...lats) };
+  } else {
+    bbox = { minLon:State.dem.minLon, maxLon:State.dem.minLon+State.dem.width*State.dem.dLon, minLat:State.dem.maxLat-State.dem.height*State.dem.dLat, maxLat:State.dem.maxLat };
+  }
+
+  const savedBounds = {...State.bounds}, savedView = {...State.view}, savedMode = State.basemapMode;
+  State.bounds = bbox;
+  resetView();
+
+  const levels = [...new Set(State.contourSegments.map(s=>s.level))].sort((a,b)=>a-b);
+  const levelsText = levels.map(l=>l.toFixed(1)).join(', ');
+  const proj = document.getElementById('projectName').value || 'Untitled Survey';
+  const now = new Date().toLocaleString();
+  const resText = State.demResM ? `${State.demResM.x.toFixed(1)} × ${State.demResM.y.toFixed(1)} m/pixel` : '—';
+  const header = `
+    <h1>${proj} — Contour Map</h1>
+    <div class="meta">
+      Generated ${now} &middot; Road &amp; Drain Survey Planner (offline)<br>
+      Area: <b>${usingArea ? 'Selected '+State.areaType : 'Full loaded DEM'}</b> &middot; DEM Source: <b>${State.demSourceName||'—'}</b> &middot; Resolution: <b>${resText}</b><br>
+      Elevation range: <b>${State.demMinV.toFixed(1)} – ${State.demMaxV.toFixed(1)} m</b> &middot; Contour interval: <b>${State.contourInterval} m</b> &middot; Levels shown: <b>${levelsText} m</b>
+    </div>`;
+  const report = document.getElementById('reportSection');
+
+  if (savedMode === 'off') {
+    // No basemap in use — build and print synchronously (no network wait), which also keeps this print()
+    // call tied to the same user click/tap so mobile browsers that require that association still honor it.
+    redraw();
+    const plainImg = safeCanvasDataURL(getCanvas());
+    State.bounds = savedBounds; State.view = savedView;
+    redraw();
+    report.innerHTML = `${header}${plainImg ? `<img class="mapshot" src="${plainImg}">` : '<p>The map image could not be created on this device.</p>'}`;
+    window.print();
+    return;
+  }
+
+  // A basemap is enabled — this needs a genuine network wait for tiles, so gesture association may already
+  // be lost by the time print() fires on very strict mobile browsers; unavoidable while online tiles load.
+  toast('Preparing contour map (with and without map tiles)…');
+  State.basemapMode = 'off';
+  redraw();
+  const noTilesImg = safeCanvasDataURL(getCanvas());
+
+  State.basemapMode = savedMode;
+  const {w} = canvasSize();
+  try { await prefetchTilesForBounds(State.bounds, w); } catch(e) { /* fall through with whatever loaded */ }
+  redraw();
+  const withTilesImg = safeCanvasDataURL(getCanvas(), { noFallback: true });   // null if the provider blocks export
+
+  State.bounds = savedBounds; State.view = savedView; State.basemapMode = savedMode;
+  redraw();
+
+  report.innerHTML = `
+    ${header}
+    <h2 style="font-size:13px;color:#0b3d66;">Without map tiles</h2>
+    ${noTilesImg ? `<img class="mapshot" src="${noTilesImg}">` : ''}
+    ${withTilesImg
+      ? `<h2 style="font-size:13px;color:#0b3d66;page-break-before:always;">With map tiles</h2><img class="mapshot" src="${withTilesImg}"><div class="meta" style="margin-top:6px;">${document.getElementById('osmAttribution').textContent}</div>`
+      : `<div class="meta" style="margin-top:10px;">The map-tile page could not be included because the tile provider does not allow the imagery to be saved. Use the plain map above.</div>`}
+  `;
+  toast('Contour map ready — opening print dialog…');
+  window.print();
+}
+
+
+/* ============================= INIT ============================= */
+function init() {
+  buildSidebar();
+  buildToolbar();
+  wireDemFileInputs();
+  setDefaultBounds();
+  setupCanvasEvents();
+  setTool('pan');
+  initHistory();
+  redraw();
+  updateUIState();
+}
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
